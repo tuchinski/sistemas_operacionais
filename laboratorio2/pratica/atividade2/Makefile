@@ -1,6 +1,6 @@
 ARQUIVO_SAIDA=saida
 
-all: atividade3.c
+all: atividade2.c
 	gcc atividade2.c -o $(ARQUIVO_SAIDA)
 	./$(ARQUIVO_SAIDA)
 
