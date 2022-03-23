@@ -1,7 +1,7 @@
 ARQUIVO_SAIDA=saida
 
 all: atividade3.c
-	gcc atividade2.c -o $(ARQUIVO_SAIDA)
+	gcc atividade3.c -o $(ARQUIVO_SAIDA)
 	./$(ARQUIVO_SAIDA)
 
 clean:
