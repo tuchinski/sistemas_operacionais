@@ -1,6 +1,7 @@
 #include <stdio.h>
-#include <stdio_ext.h>
-#include <string.h>
+#include <stdio_ext.h> //__fpurge
+#include <string.h> // strtok
+#include <stdlib.h> //calloc
 
 
 
@@ -61,6 +62,14 @@ int main(int argc, char const *argv[]){
         printf("\nDigite o comando desejado: ");
         scanf("%[^\n]s", comando_digitado);
         __fpurge(stdin);
-        printf("Comando: %s", comando_digitado);
+
+        char** tokens = calloc(40, sizeof(char**));
+        int qtde_tokens = separa_tokens(comando_digitado, tokens, " ");
+        
+        for (int i = 0; i < qtde_tokens; i++)
+        {
+            printf("\n%s", tokens[i]);
+        }
+        
     }
 }
