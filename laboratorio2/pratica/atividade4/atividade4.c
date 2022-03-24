@@ -5,7 +5,7 @@
 #include <sys/wait.h> //wait
 #include <unistd.h> //fork
 
-
+int separa_tokens(char* string, char** store, char* delimitador);
 
 /*
     Faça uma interface de shell simples que fornece um prompt ao usuário para executar comandos do
@@ -23,7 +23,41 @@ int tam_string(char* str){
         i++;
         caractere_atual = str[i];
     }
-    printf("Tamanho: %d", i);
+    return i;
+}
+
+void executa_comando_filho2(char* comando, int pai_espera){
+    pid_t pid_filho;
+    pid_filho = fork();
+
+    if(pid_filho){
+        // Codigo executado pelo pai
+        if (pai_espera){
+            wait(NULL);
+        }
+        // printf("Codigo do pai\n");
+    } else {
+        // Codigo executado pelo filho
+        
+        // dividindo os tokens do comando
+        char** tokens = calloc(40, sizeof(char**));
+        int qtde_tokens = 0;
+        qtde_tokens = separa_tokens(comando, tokens, " ");
+
+        // concatenando o programa com /bin/
+        char* nome_programa = tokens[0];
+        char destination[] = "/bin/";
+        strcat(destination,nome_programa);
+        tokens[0] = destination;
+
+        printf("Executando o programa: %s\n",tokens[0]);
+        
+        execve(tokens[0], tokens, NULL);
+        exit(0);
+    }
+
+
+    
 }
 
 // Funcao que cria um processo filho e carrega o comando solicitado no processo
@@ -36,6 +70,7 @@ void executa_comando_filho(char** tokens, int qtde_tokens){
 
     if(pid_filho){
         // Codigo executado pelo pai
+        
         wait(NULL);
         printf("Codigo do pai\n");
     } else {
@@ -43,6 +78,7 @@ void executa_comando_filho(char** tokens, int qtde_tokens){
         char* nome_programa = tokens[0];
         printf("Executando o programa %s\n",nome_programa);
 
+        
         for (int i = 0; i < qtde_tokens; i++)
         {
             printf("\n%s\n", tokens[i]);
@@ -85,18 +121,17 @@ int main(int argc, char const *argv[]){
         printf("\nDigite o comando desejado: ");
         __fpurge(stdin);
         scanf("%[^\n]s", comando_digitado);
-        // __fpurge(stdin);
+        int tam_comando = tam_string(comando_digitado);     
 
-        char** tokens = calloc(40, sizeof(char**));
-        int qtde_tokens = 0;
-        qtde_tokens = separa_tokens(comando_digitado, tokens, " ");
-
-        if(qtde_tokens == 0){
-            printf("Digite algo");
+        if(comando_digitado[tam_comando-1] == '&'){
+            //pai pode rodar suave sem esperar
+            comando_digitado[tam_comando-1] = '\0';
+            printf("pai nao espera");
+            executa_comando_filho2(comando_digitado, 0);
         } else {
-            executa_comando_filho(tokens, qtde_tokens);
-        }         
-
+            // pai precisa esperar o filho rodar
+            executa_comando_filho2(comando_digitado, 1);
+        }
        
     }
 }
