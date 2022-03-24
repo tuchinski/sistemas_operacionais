@@ -30,19 +30,13 @@ void executa_comando_filho2(char* comando, int pai_espera){
     pid_t pid_filho;
     pid_filho = fork();
 
-    if(pid_filho){
-        // Codigo executado pelo pai
-        if (pai_espera){
-            wait(NULL);
-        }
-        // printf("Codigo do pai\n");
-    } else {
-        // Codigo executado pelo filho
+    if(!pid_filho){
+        
         
         // dividindo os tokens do comando
         char** tokens = calloc(40, sizeof(char**));
         int qtde_tokens = 0;
-        qtde_tokens = separa_tokens(comando, tokens, " ");
+        qtde_tokens = separa_tokens(comando, tokens, " ");        
 
         // concatenando o programa com /bin/
         char* nome_programa = tokens[0];
@@ -50,10 +44,21 @@ void executa_comando_filho2(char* comando, int pai_espera){
         strcat(destination,nome_programa);
         tokens[0] = destination;
 
-        printf("Executando o programa: %s\n",tokens[0]);
+        // Codigo executado pelo filho
+        pid_t pid = getpid();
+        
         
         execve(tokens[0], tokens, NULL);
         exit(0);
+    } else {
+        // Codigo executado pelo pai
+        int status;
+        if (pai_espera){
+            wait(NULL);
+        } else {
+            printf("Processo filho criado com o pid %i", pid_filho);
+        }
+        
     }
 
 
@@ -118,7 +123,7 @@ int main(int argc, char const *argv[]){
     char* tokens_comando[50];
 
     while (1) {
-        printf("\nDigite o comando desejado: ");
+        printf("\n\nDigite o comando desejado: ");
         __fpurge(stdin);
         scanf("%[^\n]s", comando_digitado);
         int tam_comando = tam_string(comando_digitado);     
@@ -126,7 +131,7 @@ int main(int argc, char const *argv[]){
         if(comando_digitado[tam_comando-1] == '&'){
             //pai pode rodar suave sem esperar
             comando_digitado[tam_comando-1] = '\0';
-            printf("pai nao espera");
+            // printf("pai nao espera");
             executa_comando_filho2(comando_digitado, 0);
         } else {
             // pai precisa esperar o filho rodar
