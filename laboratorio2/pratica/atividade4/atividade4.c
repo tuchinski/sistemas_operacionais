@@ -2,6 +2,8 @@
 #include <stdio_ext.h> //__fpurge
 #include <string.h> // strtok
 #include <stdlib.h> //calloc
+#include <sys/wait.h> //wait
+#include <unistd.h> //fork
 
 
 
@@ -26,8 +28,29 @@ int tam_string(char* str){
 
 // Funcao que cria um processo filho e carrega o comando solicitado no processo
 // Local dos executaveis: /bin
-void executa_comando_filho(char* comando){
+void executa_comando_filho(char** tokens, int qtde_tokens){
 
+    tokens[qtde_tokens] = NULL;
+    pid_t pid_filho;
+    pid_filho = fork();
+
+    if(pid_filho){
+        // Codigo executado pelo pai
+        wait(NULL);
+        printf("Codigo do pai\n");
+    } else {
+       // Codigo executado pelo filho
+        char* nome_programa = tokens[0];
+        printf("Executando o programa %s\n",nome_programa);
+
+        for (int i = 0; i < qtde_tokens; i++)
+        {
+            printf("\n%s\n", tokens[i]);
+        }
+        
+        execve("/bin/ls", tokens, NULL);
+        exit(0);
+    }
 }
 
 //Separa o comando em tokens e retorna a qtde de tokens
@@ -60,16 +83,20 @@ int main(int argc, char const *argv[]){
 
     while (1) {
         printf("\nDigite o comando desejado: ");
-        scanf("%[^\n]s", comando_digitado);
         __fpurge(stdin);
+        scanf("%[^\n]s", comando_digitado);
+        // __fpurge(stdin);
 
         char** tokens = calloc(40, sizeof(char**));
-        int qtde_tokens = separa_tokens(comando_digitado, tokens, " ");
-        
-        for (int i = 0; i < qtde_tokens; i++)
-        {
-            printf("\n%s", tokens[i]);
-        }
-        
+        int qtde_tokens = 0;
+        qtde_tokens = separa_tokens(comando_digitado, tokens, " ");
+
+        if(qtde_tokens == 0){
+            printf("Digite algo");
+        } else {
+            executa_comando_filho(tokens, qtde_tokens);
+        }         
+
+       
     }
 }
