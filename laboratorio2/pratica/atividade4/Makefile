@@ -1,9 +1,7 @@
-ARQUIVO_SAIDA=saida
+ARQUIVO_SAIDA=atividade4
 
-all: atividade4.c
-	clear
-	gcc atividade4.c -o $(ARQUIVO_SAIDA)
-	./$(ARQUIVO_SAIDA)
+all: $(ARQUIVO_SAIDA)
+	gcc -Wall $(ARQUIVO_SAIDA).c -o $(ARQUIVO_SAIDA)
 
 clean:
-	rm -rf $(ARQUIVO_SAIDA)
+	rm $(ARQUIVO_SAIDA)

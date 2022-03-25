@@ -5,15 +5,19 @@
 #include <sys/wait.h> //wait
 #include <unistd.h> //fork
 
-int separa_tokens(char* string, char** store, char* delimitador);
-
 /*
     Faça uma interface de shell simples que fornece um prompt ao usuário para executar comandos do
     shell do sistema. Se o comando for executado em segundo plano (&), a interface deve possibilitar a
     execução de outros comandos. Caso contrário, a interface deve esperar o retorno do comando e, em
     seguida, exibir o prompt novamente.
+
+    Autores: Ilzimara Silva, Leonardo Tuchinski e Lucas Gabriel
+
+    Data: 24/03/2022
 */
-// Pegar string com espaco do terminal em C: https://www.geeksforgeeks.org/taking-string-input-space-c-3-different-methods/
+
+int separa_tokens(char* string, char** store, char* delimitador);
+
 
 // Funcao que verifica o tamanho da string
 int tam_string(char* str){
@@ -42,27 +46,20 @@ void executa_comando_filho2(char* comando, int pai_espera){
         char* nome_programa = tokens[0];
         char destination[] = "/bin/";
         strcat(destination,nome_programa);
-        tokens[0] = destination;
-
-        // Codigo executado pelo filho
-        pid_t pid = getpid();
-        
+        tokens[0] = destination;        
         
         execve(tokens[0], tokens, NULL);
         exit(0);
     } else {
         // Codigo executado pelo pai
-        int status;
+        
         if (pai_espera){
             wait(NULL);
         } else {
             printf("Processo filho criado com o pid %i", pid_filho);
         }
         
-    }
-
-
-    
+    }    
 }
 
 // Funcao que cria um processo filho e carrega o comando solicitado no processo
@@ -120,7 +117,6 @@ int separa_tokens(char* string, char** store, char* delimitador){
 
 int main(int argc, char const *argv[]){
     char comando_digitado[100];
-    char* tokens_comando[50];
 
     while (1) {
         printf("\n\nDigite o comando desejado: ");
