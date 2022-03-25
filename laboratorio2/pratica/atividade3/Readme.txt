@@ -5,6 +5,7 @@
     - O vetor é dividido originalmente em 2 partes, caso deseje aumentar a divisão, 
         é necessário alterar o valor de TAMANHO_DIVISAO, que está na linha 7 do código 
         EX: #define TAMANHO_DIVISAO 5 para que o vetor seja dividido em 5 processos
+    - OBS: quando qualquer parâmetro for alterado, o comando "make" deve ser executado novamente, para recompilar o código
 
     
     - Exemplo de uso:
