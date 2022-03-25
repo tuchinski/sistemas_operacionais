@@ -5,6 +5,16 @@
 #define NIVEL_ARVORE 2
 #define TEMPO_ESPERA 10
 
+/*
+    Faça um programa que crie uma hierarquia de processos com N níveis (1 + 2 + 4 + 8 + ... + 2 N-1 )
+    processos. Visualize a hierarquia usando um comando do sistema (pstree).
+
+    Autores: Ilzimara Silva, Leonardo Tuchinski e Lucas Gabriel
+
+    Data: 24/03/2022
+
+*/
+
 // Cria os n filhos
 void cria_filho(int qtd_filho){
     // condicao de parada da criacao dos filhos
