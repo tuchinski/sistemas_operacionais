@@ -5,6 +5,16 @@
 #include <string.h>
 #include <stdlib.h>
 
+/*
+    Faça um programa que receba um comando Linux como parâmetro e execute como um filho do
+    processo. O processo pai deve aguardar o término da execução do comando.
+
+    Autores: Ilzimara Silva, Leonardo Tuchinski e Lucas Gabriel
+
+    Data: 24/03/2022
+
+*/
+
 int main(int argc, char *argv[]){
     pid_t child_pid;
     int status;
