@@ -3,21 +3,32 @@
 #include <stdlib.h> // rand
 #include <sys/types.h> // pid_t
 #include <unistd.h>    //fork()
-#define print printf
+#include <sys/wait.h>
+#define TAMANHO_DIVISAO 2
 
-int *busca_vetor_filhos(int *vetor, int inicio_busca, int fim_busca, int num_buscado)
+
+/*
+    Faça um programa que receba um vetor e divida para N filhos partes iguais de processamento para
+    localizar um item. Exibir o PID dos filhos que encontrarem o valor procurado
+
+    Autores: Ilzimara Silva, Leonardo Tuchinski e Lucas Gabriel
+
+    Data: 24/03/2022
+
+*/
+
+void busca_vetor_filhos(int *vetor, int inicio_busca, int fim_busca, int num_buscado)
 {
     pid_t pid;
     pid = fork();
 
-    if (pid)
+    if (!pid)
     {
-        printf("\nFilho criado: %d\n", pid);
         for (int i = inicio_busca; i <= fim_busca; i++)
         {
             if (vetor[i] == num_buscado)
             {
-                printf("NUMERO ENCONTRADO NO FILHO COM PID: %d\n", pid);
+                printf("NUMERO ENCONTRADO - Indice -> %i\n", i);
                 exit(0);
             }
         }
@@ -54,7 +65,7 @@ int main(int argc, char const *argv[])
     scanf("%i", &numero_buscado);
 
     // Realizando a divisao dos vetores
-    qtde_filhos = 5;
+    qtde_filhos = TAMANHO_DIVISAO;
     if (qtde_filhos <= tam_vetor)
     {
         qtde_itens_processados = tam_vetor / qtde_filhos;
@@ -69,7 +80,6 @@ int main(int argc, char const *argv[])
                 fim = fim + (tam_vetor % qtde_filhos);
             }
             busca_vetor_filhos(vetor, inicio, fim, numero_buscado);
-            // printf("[%d] -> Inicio: %d, Fim: %d\n", i, inicio, fim);
 
             inicio = fim + 1;
             fim = fim + qtde_itens_processados;
@@ -80,5 +90,6 @@ int main(int argc, char const *argv[])
         printf("Numero de processos filhos deve ser menor ou igual ao tamanho do vetor -> %d", tam_vetor);
     }
 
+    // sleep(2);
     return 0;
 }
