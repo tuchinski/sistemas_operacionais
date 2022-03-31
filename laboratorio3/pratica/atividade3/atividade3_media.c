@@ -50,12 +50,10 @@ void* calcula_media_coluna(void* param){
 }
 
 int main(int argc, char const *argv[])
-{
-    // char nomearquivo[] = "matriz_6por8.in";
-    
+{    
     FILE *file = fopen(argv[1], "r");
     if(!file){
-        printf("Erro ao abrir o arquivo. Verificar se o nome do arquivo digitado está correto");
+        printf("Erro ao abrir o arquivo. Verificar se o nome do arquivo digitado está correto\n");
         exit(1);
     }
     char c;
@@ -100,11 +98,6 @@ int main(int argc, char const *argv[])
     // aloca cada uma das linhas (vetores de qtde_col inteiros)
     for (int i = 0; i < dimensoes[0]; i++)
        matriz[i] = malloc (dimensoes[1] * sizeof (int)) ;
-
-    // int matriz[qtde_linhas][qtde_colunas];
-
-    
-
 
     // le a matriz do documento
     while ((c = getc(file)) != EOF){
