@@ -46,13 +46,18 @@ void* calcula_media_coluna(void* param){
         dados->resultado[c] = soma;
         soma = 0;
     }
+    return NULL;
 }
 
 int main(int argc, char const *argv[])
 {
-    char nomearquivo[] = "matriz_6por8.in";
+    // char nomearquivo[] = "matriz_6por8.in";
     
-    FILE *file = fopen(nomearquivo, "r");
+    FILE *file = fopen(argv[1], "r");
+    if(!file){
+        printf("Erro ao abrir o arquivo. Verificar se o nome do arquivo digitado está correto");
+        exit(1);
+    }
     char c;
     char num_atual[4];
     int a = 0;// acumulador pra caso os numeros tenham mais de um digito
