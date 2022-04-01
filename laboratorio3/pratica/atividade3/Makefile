@@ -2,7 +2,7 @@ CC=gcc -Wall
 
 FLAGS=-lpthread
 
-P1=atividade3_media
+P1=atividade3
 
 PROGS=$(P1)
 
