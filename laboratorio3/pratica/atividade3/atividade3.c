@@ -2,7 +2,8 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <string.h>
-#define NUM_THREADS 6
+#include <time.h>
+#define NUM_THREADS 32 
 
 /*
     Implemente um programa multithread com pthreads que calcule:
@@ -12,6 +13,10 @@
     O programa deve gerar matrizes MxN com elementos aleatórios para arquivos; usar técnicas de
     paralelização de funções e de dados; ler matrizes MxN de arquivos no formato em anexo; gravar os
     resultados em um arquivo texto.
+
+    Autores: Ilzimara Silva, Leonardo Tuchinski e Lucas Gabriel
+
+    Data: 31/03/2022
 */
 
 struct data_chunk
@@ -133,7 +138,6 @@ int main(int argc, char const *argv[])
         }
     }else{
         strcpy(arquivo, argv[1]);
-        printf("dasdsadsdateste\n\n\n");
     }
 
     // ------------------- Leitura do arquivo -----------------------------------
@@ -209,7 +213,6 @@ int main(int argc, char const *argv[])
             a = 0;
         }   
     }
-    printf("Matriz\n");
     matriz[linha_atual][col_atual] = atoi(num_atual); // necessario pra ler o ultimo numero da matriz
     
     fclose(file);
@@ -231,8 +234,8 @@ int main(int argc, char const *argv[])
         num_threads_mediana = NUM_THREADS - num_threads_media;
     }
 
-    printf("\nThreads para media: %i\n", num_threads_media);
-    printf("Threads para mediana: %i\n", num_threads_mediana);
+    // printf("\nThreads para media: %i\n", num_threads_media);
+    // printf("Threads para mediana: %i\n", num_threads_mediana);
 
     // Criando as estruturas de dados para calculo da media
     struct data_chunk dados_media[num_threads_media];
@@ -267,6 +270,10 @@ int main(int argc, char const *argv[])
     dados_mediana[num_threads_mediana-1].pos_final = dimensoes[0];
 
 
+    clock_t t;
+
+    t = clock(); //armazena tempo
+
     // Criando as threads para calculo da media
     pthread_t threads_media[num_threads_media];
     for (int p = 0; p < num_threads_media; p++)
@@ -290,6 +297,9 @@ int main(int argc, char const *argv[])
      for (int p=0; p < num_threads_mediana; p++){
         pthread_join (threads_mediana[p], NULL);
      }
+     t = clock() - t; //tempo final - tempo inicial
+    //imprime o tempo na tela
+    printf("Tempo de execucao: %lf\n", ((double)t)/((CLOCKS_PER_SEC/1000))); //conversão para double
     
     
     char nome_arquivo_resposta[60] = "resposta ";

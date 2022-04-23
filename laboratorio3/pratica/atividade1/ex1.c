@@ -4,6 +4,15 @@
 #include <stdint.h>
 #include <inttypes.h>
 
+/*
+    Faça um programa com N threads que localiza um valor em um vetor de inteiros. O espaço de busca no
+    vetor deve ser distribuído para as N threads
+
+    Autores: Ilzimara Silva, Leonardo Tuchinski e Lucas Gabriel
+
+    Data: 31/03/2022
+*/
+
 // variaveis para o array, o numero de threads a serem criada e o numero escolhido pelo usuário
 int *array, numThreads, numeroEscolhido;
 
