@@ -1,13 +1,14 @@
 CC=gcc -Wall
 
-PROGS=atividade4
+PROGS=server client
 
 all: $(PROGS)
 
 clean:
 	rm -f $(PROGS)
 
-atividade4: atividade4.c
+server: server.c
 	$(CC) $< -o $@
-	@./$@
 	
+client: client.c
+	$(CC) $< -o $@
