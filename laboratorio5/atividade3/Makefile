@@ -9,5 +9,5 @@ clean:
 
 atividade4: atividade4.c
 	$(CC) $< -o $@
-	@./$@
+	# @./$@
 	
