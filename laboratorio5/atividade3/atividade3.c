@@ -23,39 +23,43 @@ int count, shmsz;
 
 key_t key = 3254;
 
+// funcão que é executada pelos filhos criados
 int child(int* nome_pipe){
     int buffer_lido[6];
     close(nome_pipe[1]);
     read(nome_pipe[0], buffer_lido, sizeof(int) * 6);
 
-    int memory_id_filho_1, *memory_filho_1, *share_filho_1;
+    int memory_id_filho, *memory_filho, *share_filho;
 
-    if ((memory_id_filho_1 = shmget(key, shmsz, 0666)) < 0){
+    if ((memory_id_filho = shmget(key, shmsz, 0666)) < 0){
         printf("Erro ao tentar acessar o segmento do Filho %i.", count); 
         exit(1); 
     }
-    if ((memory_filho_1 = shmat(memory_id_filho_1, NULL, 0)) == (int*)-1){ 
+    if ((memory_filho = shmat(memory_id_filho, NULL, 0)) == (int*)-1){ 
         perror("Erro ao acoplar o segmento ao espaço de dados do programa."); 
         exit(1); 
     }
 
-    share_filho_1 = memory_filho_1;
+    share_filho = memory_filho;
     int index_vetor_1 = buffer_lido[0], index_vetor_2 = buffer_lido[2], index_vetor_resultado = buffer_lido[4];
 
-    //Soma vet_result[n] = vetor_1[n] + vetor_2[n].
+    // realiza a soma dos vetores
     while(index_vetor_1 < buffer_lido[1]) {
-        memory_filho_1[index_vetor_resultado] = share_filho_1[index_vetor_1] + share_filho_1[index_vetor_2];
+        memory_filho[index_vetor_resultado] = share_filho[index_vetor_1] + share_filho[index_vetor_2];
         index_vetor_1++; index_vetor_2++; index_vetor_resultado++;
     }
 
-    if (shmdt(memory_filho_1) == -1){ perror("Erro ao desacoplar da região de memória compartilhada."); exit(1); }
+    if (shmdt(memory_filho) == -1){ 
+        perror("Erro ao desacoplar da região de memória compartilhada."); 
+        exit(1); 
+    }
     fflush(stdout);
     return EXIT_SUCCESS;
 }
 
 int main(int argc, char* argv[]){
 	count = 0; 
-    int index, memory_id_pai, *memory_pai, *share_pai, qtde_elementos, processos, shmsz,min_range, mid_range, max_range, intervalo;
+    int index, memory_id_pai, *memory_pai, *share_pai, qtde_elementos, processos,min_range, mid_range, max_range, intervalo;
     
     
     if(argc != 3){
@@ -72,20 +76,29 @@ int main(int argc, char* argv[]){
 
     qtde_elementos = atoi(argv[1]);
     processos = atoi(argv[2]); 
-    shmsz = qtde_elementos * 3;
+    shmsz = (qtde_elementos * 3) * 4;
     min_range = 0;
     mid_range = qtde_elementos;
     max_range = qtde_elementos * 2;
 
 
-    if ((memory_id_pai = shmget(key, shmsz, IPC_CREAT | 0666)) < 0) { perror("Erro ao tentar criar o segmento de shm."); exit(1); }
-    if ((memory_pai = shmat(memory_id_pai, NULL, 0)) == (int*)-1) { perror("Erro ao acoplar o segmento ao espaço de dados do programa."); exit(1); }
+    // cria o espaço da memória compartilhada com o espaco de TAM_VET * 3
+    if ((memory_id_pai = shmget(key, shmsz, IPC_CREAT | 0666)) < 0) { 
+        perror("Erro ao tentar criar o segmento de shm."); 
+        exit(1); 
+    }
+
+    if ((memory_pai = shmat(memory_id_pai, NULL, 0)) == (int*)-1) {
+        perror("Erro ao acoplar o segmento ao espaço de dados do programa."); 
+        exit(1); 
+    }
     printf("\nREGIÃO DE MEMÓRIA (%d)\n\n", memory_id_pai);
 
     share_pai = memory_pai;
 
     srand((unsigned)time(NULL));
     
+    // colocando valores nos vetores 1 e 2
     for(index = min_range; index < max_range; index++) {
         share_pai[index] = rand()%10;
     }
@@ -107,6 +120,7 @@ int main(int argc, char* argv[]){
     int mid = qtde_elementos;
     int max = qtde_elementos*2;
 
+    // cria os pipes que vao armazenar as informações para cada filho que fará o processamento
     intervalo = qtde_elementos/processos;
     for (int i = 0; i < processos; i++)
     {
@@ -130,7 +144,7 @@ int main(int argc, char* argv[]){
             buffer_local[3] = qtde_elementos*2;
             buffer_local[5] = qtde_elementos*3;
         }
-        write(pipes[i][1], buffer_local, sizeof(buffer_local));
+        write(pipes[i][1], buffer_local, sizeof(buffer_local)); // escreve nos pipes
         
 
         min += intervalo;
@@ -138,19 +152,27 @@ int main(int argc, char* argv[]){
         max += intervalo;
     }
 
-    
+    // cria os n filhos para fazer o processamento
     for (int i = 0; i < processos; i++)
     {
         pid_t filho;
-            count++;
+        count++;
         if((filho = fork()) == 0){
             child(pipes[i]);
-            exit(0);
+            exit(1);
         } 
     }
 
 
-    wait(NULL);
+    pid_t pidFilho;
+    int status;
+    do {
+        pidFilho = wait(&status);
+        printf("--Filho %d finalizaou com status %d\n", pidFilho, status);
+    } while (pidFilho > 0);
+
+
+    // wait(NULL); // espera os filhos
 
     printf("RESULTADO: |");
     for (int j = qtde_elementos*2; j < qtde_elementos*2 + qtde_elementos; j++){
@@ -158,8 +180,14 @@ int main(int argc, char* argv[]){
     }
     printf("\n\n");
 
-    if (shmdt(memory_pai) == -1){ perror("Erro ao desacoplar da região de memória compartilhada."); exit(1); }
-    if (shmctl(memory_id_pai, IPC_RMID, 0) == -1){ perror("Erro ao destruir o segmento compartilhado. (shmctl)."); exit(1); }
+    if (shmdt(memory_pai) == -1){ 
+        perror("Erro ao desacoplar da região de memória compartilhada."); 
+        exit(1); 
+    }
+    if (shmctl(memory_id_pai, IPC_RMID, 0) == -1){ 
+        perror("Erro ao destruir o segmento compartilhado. (shmctl)."); 
+        exit(1); 
+    }
     
     return EXIT_SUCCESS;
     
