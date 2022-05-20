@@ -8,4 +8,4 @@ clean:
 	rm -f $(PROGS)
 
 escritoresLeitores: escritoresLeitores.c
-	$(CC) escritoresLeitores.c -o escritoresLeitores.exe -lpthread
+	$(CC) escritoresLeitores.c -o escritoresLeitores -lpthread
