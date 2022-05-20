@@ -1,4 +1,4 @@
-# Atividade que implementa o problema clássico dos Leitores e escritores
+# Atividade que implementa o problema clássico dos Leitores e escritores com semáforos
 
 - Informações:
     - Durante a execução, será perguntado o número de leitores que serão criados

@@ -1,6 +1,15 @@
 #include "barbeiro_monitor.h"
 
 /*
+    Implementação do problema clássico do barbeiro dorminhoco com monitores
+
+    Autores: Ilzimara Silva, Leonardo Tuchinski e Lucas Gabriel
+
+    Data: 19/05/2022
+
+*/
+
+/*
     Inicia o monitor, criando o mutex e as variaveis de condicao
 */
 void initMonitor(){

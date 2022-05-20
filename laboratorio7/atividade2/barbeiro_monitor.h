@@ -7,6 +7,15 @@
 #define QTDE_CLIENTES_ATENDIMENTO 10
 #define FREQUENCIA_CHEGADA_CLIENTES 1
 
+/*
+    Implementação do problema clássico do barbeiro dorminhoco com monitores
+
+    Autores: Ilzimara Silva, Leonardo Tuchinski e Lucas Gabriel
+
+    Data: 19/05/2022
+
+*/
+
 // controle de concorrencia
 pthread_mutex_t the_mutex;
 pthread_cond_t condBarbeiro, condClientes;

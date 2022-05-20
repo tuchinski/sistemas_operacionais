@@ -4,6 +4,14 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
+/*
+    Implementação do problema clássico dos produtores/escritores com semáforos
+
+    Autores: Ilzimara Silva, Leonardo Tuchinski e Lucas Gabriel
+
+    Data: 19/05/2022
+
+*/
 
 //semaforo para controlar os leitores e o acesso ao arquivo
 sem_t mutex, arquivo;
