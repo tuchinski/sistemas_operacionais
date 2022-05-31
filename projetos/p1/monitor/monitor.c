@@ -7,7 +7,7 @@ void init_monitor(){
 
     num_max_alunos_comp_sala = 5;
     num_min_alunos_comp_sala = 1;
-    num_min_alunos_so_sala = 1;
+    num_min_alunos_so_sala = 2;
     qtde_atual_alunos_sala = 0;
     apresentacao = 0; // boolean para definir se esta acontecendo alguma apresentação
     aceitaOuvintes = 1; //para definir se a apresentação ainda aceita ouvintes

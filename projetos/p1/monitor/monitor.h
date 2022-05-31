@@ -34,13 +34,13 @@ void p_atribuir_nota();
 void p_fechar_porta(); // quando nao tem mais ninguem pra apresentar, termina a execução
 
 //métodos dos alunos de SO
-void so_entrar_sala(); // tem que entrar na fila_alunos_so
-void so_assinar_lista_entrada(); // dentro do so_entrar_sala
-void so_aguardar_apresentacoes(); // quando o aluno não conseguir apresentar, fica esperando
-void so_apresentar(); // aluno de SO apresenta
-void so_assinar_lista_saida(); // tem que assinar quando for sair da sala
+void so_entrar_sala(int id_aluno); // tem que entrar na fila_alunos_so
+void so_assinar_lista_entrada(int id_aluno); // dentro do so_entrar_sala
+void so_aguardar_apresentacoes(int id_aluno); // quando o aluno não conseguir apresentar, fica esperando
+void so_apresentar(int id_aluno); // aluno de SO apresenta
+void so_assinar_lista_saida(int id_aluno); // tem que assinar quando for sair da sala
 
 // Metodos dos alunos de computação
-void comp_entrar_sala(); // tem que esperar na fila_alunos_comp
-void comp_assistir_apresentacao(); // metodo pra somente assistir, 
-void comp_sair_apresentacao(); // pro aluno sair da apresentação (ps: pode sair no meio da apresentação)
+void comp_entrar_sala(int id_aluno); // tem que esperar na fila_alunos_comp
+void comp_assistir_apresentacao(int id_aluno); // metodo pra somente assistir, 
+void comp_sair_apresentacao(int id_aluno); // pro aluno sair da apresentação (ps: pode sair no meio da apresentação)
