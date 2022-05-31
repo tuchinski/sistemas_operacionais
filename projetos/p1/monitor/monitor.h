@@ -30,8 +30,14 @@ void destroy_monitor();
 
 // métodos do professor
 void p_iniciar_apresentacoes(); // tem que acordar 1 aluno de so e 5 alunos de computação
-void p_liberar_entrada(); // dispara o for que vai acordar os alunos de computacao e de SO
+
+// libera a entrada dos alunos, somente se a sala estiver vazia
+// caso nao esteja, retorna -1
+// caso tudo ocorra normalmente e o prof consiga liberar a entrada, retorna 1
+int p_liberar_entrada(); 
+
 void p_atribuir_nota();
+
 void p_fechar_porta(); // quando nao tem mais ninguem pra apresentar, termina a execução
 
 //métodos dos alunos de SO

@@ -38,15 +38,16 @@ void destroy_monitor(){
 /* dispara o for que vai acordar os alunos de computacao e de SO
 
 */
-void p_liberar_entrada(){
+int p_liberar_entrada(){
     pthread_mutex_lock(&regiao_critica);
     // precisa esperar todos os alunos de computacao
-    aceitaOuvintes = 1; // permitindo que a sala aceite ouvintes
-    apresentacao = 0; // informa que nao esta acontecendo uma apresentacao
-    while(qtde_atual_alunos_comp_sala != 0){
-        printf("PROFESSOR aguardando a saida de todos os alunos\n");
-        sleep(0.5); // ! cuidar com o sleep aqui
+    // aceitaOuvintes = 1; // permitindo que a sala aceite ouvintes
+    if(qtde_atual_alunos_comp_sala != 0){
+        printf("PROFESSOR precisa aguardar a saida de todos os alunos\n"); 
+        pthread_mutex_unlock(&regiao_critica);
+        return -1;
     }
+    apresentacao = 0; // informa que nao esta acontecendo uma apresentacao
     printf("A entrada foi liberada pelo PROFESSOR\n");
 
     // acorda todos os alunos
@@ -54,6 +55,7 @@ void p_liberar_entrada(){
     pthread_cond_broadcast(&fila_alunos_so);
 
     pthread_mutex_unlock(&regiao_critica);
+    return 1;
 } 
 
 /*

@@ -8,11 +8,19 @@ void *ouvinte(void* ptr){
 }
 
 void *professor(void* ptr){
-        p_liberar_entrada();
-        p_iniciar_apresentacoes();
-        sleep(10);
-        p_liberar_entrada();
-        p_iniciar_apresentacoes();
+    while(p_liberar_entrada() == -1){
+        sleep(1);
+    }
+        
+    p_iniciar_apresentacoes();
+    // sleep();
+    // int a = 
+    // printf("!!!!!!!! %i !!!!!!", a);
+    while(p_liberar_entrada() == -1){
+        printf("teste");
+        sleep(1);
+    }
+    p_iniciar_apresentacoes();
 }
 
 int main(int argc, char const *argv[])
