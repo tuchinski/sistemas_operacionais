@@ -9,6 +9,10 @@ void *ouvinte(void* ptr){
 
 void *professor(void* ptr){
         p_liberar_entrada();
+        p_iniciar_apresentacoes();
+        sleep(10);
+        p_liberar_entrada();
+        p_iniciar_apresentacoes();
 }
 
 int main(int argc, char const *argv[])
@@ -20,10 +24,11 @@ int main(int argc, char const *argv[])
     pthread_t prof;
     
     pthread_create(&prof, NULL, professor, NULL);
+    sleep(1);
 
     for (int i = 0; i < teste; i++) {
         pthread_create(&threads_ouvinte[i], NULL, ouvinte, (void*)&i);
-        // sleep(1); 
+        sleep(1); 
     }
 
     for (int i = 0; i < teste; i++) // espera todas as threads de clientes terminarem

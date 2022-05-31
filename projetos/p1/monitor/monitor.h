@@ -18,7 +18,8 @@ pthread_cond_t cond_apresentacao; //variavel de condicao para todos que estao es
 int num_max_alunos_comp_sala;
 int num_min_alunos_comp_sala;
 int num_min_alunos_so_sala;
-int qtde_atual_alunos_sala;
+int qtde_atual_alunos_comp_sala;
+int qtde_atual_alunos_so_sala;
 int apresentacao; // boolean para definir se esta acontecendo alguma apresentacao
 int aceitaOuvintes; // boolean para definir se a apresentacao ainda aceita ouvintes
 
