@@ -10,7 +10,7 @@ pthread_mutex_t sala; // mutex para representar a sala
 
 pthread_cond_t fila_alunos_comp; // variave de condicao para os alunos de computacao
 pthread_cond_t fila_alunos_so; //variavel de condicao para os alunos de SO
-pthread_cond_t cond_professor; //variavel de condicao para o professor
+pthread_cond_t cond_professor_so; //variavel de condicao para o professor
 pthread_cond_t cond_apresentacao; //variavel de condicao para todos que estao esperando o inicio das apresentacoes
 
 
