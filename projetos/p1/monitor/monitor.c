@@ -125,11 +125,35 @@ int p_fechar_porta(){
  * Metodo em que o aluno de SO tenta entrar na sala para apresentar
  *
  */ 
-void so_entrar_sala(int id_aluno);
-void so_assinar_lista_entrada(int id_aluno); // dentro do so_entrar_sala
-void so_aguardar_apresentacoes(int id_aluno); // quando o aluno não conseguir apresentar, fica esperando
-void so_apresentar(int id_aluno); // aluno de SO apresenta
-void so_assinar_lista_saida(int id_aluno); // tem que assinar quando for sair da sala
+void so_entrar_sala(int id_aluno){
+
+    printf("O aluno %i de SO, entrou na sala", id_aluno);
+
+}
+ 
+void so_assinar_lista_entrada(int id_aluno){ // dentro do so_entrar_sala
+
+    printf("O aluno %i de SO assinou a lista de entrada\n", id_aluno);
+
+}
+
+void so_aguardar_apresentacoes(int id_aluno){ // quando o aluno não conseguir apresentar, fica esperando
+
+    printf("O aluno %i de SO aguarda apresentação", id_aluno);
+
+} 
+
+void so_apresentar(int id_aluno){ // aluno de SO apresenta
+
+    printf("O aluno %i inicia a apresentação", id_aluno);
+
+}
+
+void so_assinar_lista_saida(int id_aluno){ // tem que assinar quando for sair da sala
+
+    printf("O aluno %i de SO assinou a lista de saída\n", id_aluno);
+
+} 
 // -------------------- Fim Metodos dos alunos de SO ---------------------
 
 
