@@ -21,6 +21,10 @@ void *professor(void* ptr){
         sleep(1);
     }
     p_iniciar_apresentacoes();
+
+    while(p_fechar_porta() == -1){
+        sleep(1);
+    }
 }
 
 int main(int argc, char const *argv[])

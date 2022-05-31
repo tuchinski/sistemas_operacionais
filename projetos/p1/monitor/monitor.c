@@ -93,8 +93,29 @@ void p_iniciar_apresentacoes(){
 
     pthread_mutex_unlock(&regiao_critica);
 } 
-void p_atribuir_nota();
-void p_fechar_porta(); // quando nao tem mais ninguem pra apresentar, termina a execução
+
+// Atribui nota para um aluno especifico
+void p_atribuir_nota(int id_aluno, int nota){
+    printf("\n\no PROFESSOR atribuiu a nota %i para o aluno %i\n\n", nota, id_aluno);
+}
+
+// quando nao tem mais ninguem pra apresentar, termina a execução
+int p_fechar_porta(){
+    pthread_mutex_lock(&regiao_critica);
+
+    if(qtde_atual_alunos_comp_sala != 0 || qtde_atual_alunos_so_sala != 0){
+        printf("PROFESSOR precisa aguardar a saida de todos os alunos para fechar a sala\n"); 
+        pthread_mutex_unlock(&regiao_critica);
+        return -1;
+    }
+
+    printf("\n\nO PROFESSOR esta fechando a sala de apresentacoes\n\n");
+    apresentacao = 1; // coloca o valor de apresentacao em 1, nao permitindo mais a entrada de nenhum aluno
+
+    pthread_mutex_unlock(&regiao_critica);
+    return 1;
+}
+
 // -------------------- Fim Metodos do professor ---------------------
 
 
@@ -166,6 +187,7 @@ void comp_assistir_apresentacao(int id_aluno){
 void comp_sair_apresentacao(int id_aluno){
     printf("\nO aluno de Comp. %i saiu da apresentacao\n\n", id_aluno);
     qtde_atual_alunos_comp_sala--;
+    sleep(1);
 }
 
 // -------------------- Fim Metodos dos alunos de computação ---------------------

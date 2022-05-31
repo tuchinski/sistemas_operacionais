@@ -38,7 +38,10 @@ int p_liberar_entrada();
 
 void p_atribuir_nota();
 
-void p_fechar_porta(); // quando nao tem mais ninguem pra apresentar, termina a execução
+// fecha a sala, somente se estiver vazia
+// caso nao esteja, retorna -1
+// caso tudo ocorra normalmente e o prof consiga liberar a entrada, retorna 1
+int p_fechar_porta(); 
 
 //métodos dos alunos de SO
 void so_entrar_sala(int id_aluno); // tem que entrar na fila_alunos_so
