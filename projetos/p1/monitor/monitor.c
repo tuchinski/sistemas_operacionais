@@ -7,17 +7,22 @@ void init_monitor(){
 
     num_max_alunos_comp_sala = 5;
     num_min_alunos_comp_sala = 1;
-    num_min_alunos_so_sala = 2;
+    num_max_alunos_so_sala = 2;
     qtde_atual_alunos_comp_sala = 0;
     qtde_atual_alunos_so_sala = 0;
     apresentacao = 0; // boolean para definir se esta acontecendo alguma apresentação
     aceitaOuvintes = 1; //para definir se a apresentação ainda aceita ouvintes
+    ordem_apresentacao[0]= -1;
+    ordem_apresentacao[1] = -1;
+    num_apresentacao = 0;
+    total_apresentacao = 0;
     pthread_mutex_init(&regiao_critica, NULL);
     pthread_mutex_init(&sala, NULL);
     pthread_cond_init(&fila_alunos_comp, NULL);
     pthread_cond_init(&fila_alunos_so, NULL);
     pthread_cond_init(&cond_professor_so, NULL);
     pthread_cond_init(&cond_apresentacao, NULL);
+    pthread_cond_init(&cond_fim_apresentacao, NULL);
 }
 
 /* 
@@ -30,6 +35,7 @@ void destroy_monitor(){
     pthread_cond_destroy(&fila_alunos_so);
     pthread_cond_destroy(&cond_professor_so);
     pthread_cond_destroy(&cond_apresentacao);
+    pthread_cond_destroy(&cond_fim_apresentacao);
 }
 // -------------------- Fim Metodos do monitor --------------------
 
@@ -42,13 +48,16 @@ int p_liberar_entrada(){
     pthread_mutex_lock(&regiao_critica);
     // precisa esperar todos os alunos de computacao
     // aceitaOuvintes = 1; // permitindo que a sala aceite ouvintes
-    if(qtde_atual_alunos_comp_sala != 0){
+    if(qtde_atual_alunos_comp_sala != 0 || qtde_atual_alunos_so_sala != 0){
         printf("PROFESSOR precisa aguardar a saida de todos os alunos\n"); 
         pthread_mutex_unlock(&regiao_critica);
         return -1;
     }
     apresentacao = 0; // informa que nao esta acontecendo uma apresentacao
     printf("A entrada foi liberada pelo PROFESSOR\n");
+    ordem_apresentacao[0] = -1;
+    ordem_apresentacao[1] = -1;
+    num_apresentacao = 0;
 
     // acorda todos os alunos
     pthread_cond_broadcast(&fila_alunos_comp);
@@ -126,9 +135,52 @@ int p_fechar_porta(){
  *
  */ 
 void so_entrar_sala(int id_aluno){
+    pthread_mutex_lock(&regiao_critica);
 
-    printf("O aluno %i de SO, entrou na sala", id_aluno);
+    printf("O aluno %i de SO, tentando entrar na sala\n", id_aluno);
 
+    // * Caso a sala não aceite mais apresentação(já iniciou a apresentação) 
+    // * ou já está cheia, deixa o ouvinte esperando
+
+    while(apresentacao == 1 || qtde_atual_alunos_so_sala >= num_max_alunos_so_sala){
+        printf("Aluno %i de SO aguardando liberar para apresentar", id_aluno);
+        pthread_cond_wait(&fila_alunos_so, &regiao_critica); // espera vaga na sala 
+    }
+    
+    qtde_atual_alunos_so_sala++;
+    ordem_apresentacao[num_apresentacao] = id_aluno;
+    num_apresentacao++;
+    pthread_cond_signal(&cond_professor_so);  // * Avisa o professor que chegou na sala para apresentar
+    so_assinar_lista_entrada(id_aluno);
+    
+    while(apresentacao == 0){
+        so_aguardar_apresentacoes(id_aluno);
+        pthread_cond_wait(&cond_apresentacao, &regiao_critica);
+    }
+    
+    //aguarda a vez de apresentar
+    while(ordem_apresentacao[total_apresentacao] != id_aluno){
+        so_aguardar_apresentacoes(id_aluno);
+        pthread_cond_wait(&cond_apresentacao, &regiao_critica);
+    }
+
+    so_apresentar(id_aluno);
+    total_apresentacao++;
+
+    printf("Aluno %i de SO terminou apresentação", id_aluno);
+    pthread_cond_broadcast(&cond_apresentacao);
+
+    //aguarda apresentações terminar
+    while (total_apresentacao < 2){
+        so_aguardar_apresentacoes(id_aluno);
+        pthread_cond_wait(&cond_fim_apresentacao, &regiao_critica);
+    }
+    
+    so_assinar_lista_saida(id_aluno);
+    qtde_atual_alunos_so_sala--;
+    printf("Aluno %i de SO está saindo da sala", id_aluno);
+    pthread_mutex_unlock(&regiao_critica);
+    
 }
  
 void so_assinar_lista_entrada(int id_aluno){ // dentro do so_entrar_sala
@@ -146,6 +198,7 @@ void so_aguardar_apresentacoes(int id_aluno){ // quando o aluno não conseguir a
 void so_apresentar(int id_aluno){ // aluno de SO apresenta
 
     printf("O aluno %i inicia a apresentação", id_aluno);
+    sleep(1);
 
 }
 

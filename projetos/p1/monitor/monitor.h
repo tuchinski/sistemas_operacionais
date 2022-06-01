@@ -12,17 +12,19 @@ pthread_cond_t fila_alunos_comp; // variave de condicao para os alunos de comput
 pthread_cond_t fila_alunos_so; //variavel de condicao para os alunos de SO
 pthread_cond_t cond_professor_so; //variavel de condicao para o professor
 pthread_cond_t cond_apresentacao; //variavel de condicao para todos que estao esperando o inicio das apresentacoes
-
+pthread_cond_t cond_fim_apresentacao; //variavel de condicao para o fim das apresentacões
 
 
 int num_max_alunos_comp_sala;
 int num_min_alunos_comp_sala;
-int num_min_alunos_so_sala;
+int num_max_alunos_so_sala;
 int qtde_atual_alunos_comp_sala;
 int qtde_atual_alunos_so_sala;
 int apresentacao; // boolean para definir se esta acontecendo alguma apresentacao
 int aceitaOuvintes; // boolean para definir se a apresentacao ainda aceita ouvintes
-
+int ordem_apresentacao[2]; // controla ordem de quem vai apresentar
+int num_apresentacao; // defini a posição de apresentação
+int total_apresentacao; // mostra quantas apresentações foram feitas
 
 // Métodos do monitor
 void init_monitor();
