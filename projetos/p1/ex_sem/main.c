@@ -1,3 +1,9 @@
+/*
+    Autores: Ilzimara Silva, Leonardo Tuchinski e Lucas Gabriel
+
+    Data: 31/05/2022
+*/
+
 //OBS: A quantidade de alunos de SO é determinado pelo usuário
 //OBS: A quantidade de alunos de computação é determinado seguindo a formula (numAlunosSO / 2) * 5
 //OBS: Pois, cada rodada de apresentação terá dois alunos de SO apresentando, e 5 alunos de computação na plateia

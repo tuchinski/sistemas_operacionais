@@ -1,3 +1,9 @@
+/*
+    Autores: Ilzimara Silva, Leonardo Tuchinski e Lucas Gabriel
+
+    Data: 31/05/2022
+*/
+
 #include <stdio.h>
 #include <pthread.h>
 #include <stdlib.h>

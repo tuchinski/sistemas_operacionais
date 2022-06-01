@@ -1,3 +1,9 @@
+/*
+    Autores: Ilzimara Silva, Leonardo Tuchinski e Lucas Gabriel
+
+    Data: 31/05/2022
+*/
+
 #include "monitor.h"
 
 
