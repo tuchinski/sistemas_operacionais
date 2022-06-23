@@ -141,8 +141,13 @@ def main():
 
         # DataSec = TotSec – (BPB_ResvdSecCnt + (BPB_NumFATs * FATSz) + RootDirSectors);
         data_sec = tot_sec_32 - (reserved_sectors + (num_fats * fat_Sz_32) + root_dir_sectors)
-        print(f"{tot_sec_32} - ({reserved_sectors} + ({num_fats} * {fat_Sz_32}) + {root_dir_sectors})")
+        # print(f"{tot_sec_32} - ({reserved_sectors} + ({num_fats} * {fat_Sz_32}) + {root_dir_sectors})")
         print(f"data_sec {data_sec}")
+
+        # CountofClusters = DataSec / BPB_SecPerClus;
+
+        count_of_clusters = int(data_sec / sector_per_cluster)
+        print(f"count_of_clusters {count_of_clusters}")
 
 
 
