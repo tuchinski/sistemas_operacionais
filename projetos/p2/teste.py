@@ -1,4 +1,6 @@
+from distutils.util import byte_compile
 from FAT import fat
+import codecs
 
 main_fat = fat()
 
@@ -90,8 +92,8 @@ def read_BPB(imagem):
         # Cluster raiz
         # Geralmente valor é 2
         # BPB_RootClus
-        root_clus = imagem[44:48]
-        print(f"root cluster: {int.from_bytes(root_clus,'little')}")
+        root_clus = int.from_bytes(imagem[44:48],'little')
+        print(f"root cluster: {root_clus}")
 
         # número do setor do FSINFO
         # BPB_FSInfo
@@ -121,6 +123,7 @@ def read_BPB(imagem):
         print(imagem[510]) # tem que ser igual a 0x55 ou 85
         print(imagem[511]) # tem que ser igual a 0xaa ou 170
 
+        # Atribuindo os valores encontrados para o objeto principal
         main_fat.oem_name = oem_name
         main_fat.bytes_per_sec = bytes_per_sec
         main_fat.sector_per_cluster = sector_per_cluster
@@ -150,21 +153,13 @@ def read_BPB(imagem):
         main_fat.first_data_sector = (reserved_sectors * bytes_per_sec) + (num_fats * fat_size_bytes) + main_fat.root_dir_sectors
         print(f"first_data_sector {hex(main_fat.first_data_sector)}")
 
-        # FirstSectorofCluster = ((N – 2) * BPB_SecPerClus) + FirstDataSector;
-        # como achar o primeiro setor de um cluster N
-        # n=5
-        # first_sector_of_cluster = ((n-2) * sector_per_cluster) + first_data_sector
-        # first_sector_of_cluster = ((n-2) * sector_per_cluster * bytes_per_sec) + first_data_sector
-        # print(f"first_sector_of_cluster {n} {hex(first_sector_of_cluster)}")
-
         # DataSec = TotSec – (BPB_ResvdSecCnt + (BPB_NumFATs * FATSz) + RootDirSectors);
         main_fat.data_sec = tot_sec_32 - (reserved_sectors + (num_fats * fat_Sz_32) + main_fat.root_dir_sectors)
         print(f"{tot_sec_32} - ({reserved_sectors} + ({num_fats} * {fat_Sz_32}) + {main_fat.root_dir_sectors})")
         print(f"data_sec {main_fat.data_sec}")
 
         # CountofClusters = DataSec / BPB_SecPerClus;
-
-        main_fat. count_of_clusters = int(main_fat.data_sec / sector_per_cluster)
+        main_fat.count_of_clusters = int(main_fat.data_sec / sector_per_cluster)
         print(f"count_of_clusters {main_fat.count_of_clusters}")
 
 def read_fsi(imagem):
@@ -223,28 +218,78 @@ def read_fsi(imagem):
     main_fat.fsi_reserved2 = fsi_reserved2
     main_fat.fsi_trail_sig = fsi_trail_sig
 
+# Retorna os dados 
+def return_text_from_cluster(imagem, num_cluster) -> str:
+    global main_fat
+    if num_cluster < main_fat.root_clus:
+        print(f"Os clusters de dados começam em {main_fat.root_clus}")
+        return None
+    
+    first_sector_of_cluster = ((num_cluster-2) * main_fat.sector_per_cluster * main_fat.bytes_per_sec) + main_fat.first_data_sector
+    print(f"@@@@@first_sector_of_cluster {num_cluster} {hex(first_sector_of_cluster)}")
+
+    cluster_text = imagem[first_sector_of_cluster: first_sector_of_cluster + main_fat.bytes_per_sec * main_fat.sector_per_cluster]
+    return cluster_text.decode(errors='backslashreplace')
+
+def print_menu():
+    pass
+    print(
+        '''
+        info: exibe informações do disco e da FAT.
+
+        cluster <num>: exibe o conteúdo do bloco num no formato texto.
+        
+        pwd: exibe o diretório corrente (caminho absoluto).
+
+        attr <file | dir>: exibe os atributos de um arquivo (file) ou diretório (dir).
+
+        cd <path>: altera o diretório corrente para o definido como path.
+
+        touch <file>: cria o arquivo file com conteúdo vazio.
+
+        mkdir <dir>: cria o diretório dir vazio.
+
+        rm <file>: remove o arquivo file do sistema.
+
+        rmdir <dir>: remove o diretório dir, se estiver vazio.
+
+        cp <source_path> <target_path>: copia um arquivo de origem (source_path) para destino (target_path).
+
+        mv <source_path> <target_path>: move um arquivo de origem (source_path) para destino (target_path).
+
+        rename <file> <newfilename> : renomeia arquivo file para newfilename.
+
+        ls: listar os arquivos e diretórios do diretório corrente.
+        
+        '''
+    )
+
 def main():
     with open('myimagefat32.img', 'rb') as imagem_iso:
         global main_fat
         a = imagem_iso.read()
+        print_menu()
+
+
 
         # main_fat = fat()
         read_BPB(a)
         read_fsi(a)
         print('\n\n Printando o obj fat')
         print(main_fat)
-        
-        
 
-        
-
+        # FirstSectorofCluster = ((N – 2) * BPB_SecPerClus) + FirstDataSector;
+        # como achar o primeiro setor de um cluster N
+        byte_ret = return_text_from_cluster(a, 2)
+        print(byte_ret)
+       
        
 
     print("\n----------------------------------------------------------------\n")
 
     print("Tentando ler um arquivo da tabela de dados\n\n")
 
-    print("first_data_sector!!!!!!!!!", main_fat.first_data_sector)
+    # print("first_data_sector!!!!!!!!!", hex(main_fat.first_data_sector))
     inicio_dados = main_fat.first_data_sector 
     print(f'dasdasd {hex(inicio_dados)}')
     print(hex(a[inicio_dados + 11]))
