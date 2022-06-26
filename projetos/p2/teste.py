@@ -1,7 +1,6 @@
-from distutils.util import byte_compile
 from FAT import fat
-import codecs
 
+# objeto que representa o imagem FAT
 main_fat = fat()
 
 def read_BPB(imagem):
@@ -142,6 +141,7 @@ def read_BPB(imagem):
         main_fat.bk_boot_sec = bk_boot_sec
         main_fat.reserved_bytes = reserved
         main_fat.fil_sys_type = fil_sys_type
+        main_fat.start_fat1 = reserved_sectors * bytes_per_sec
 
         # root_dir_sectors = ((BPB_RootEntCnt * 32) + (BPB_BytsPerSec – 1)) / BPB_BytsPerSec;
         # o BPB_RootEntCnt na FAT32 sempre tem o valor 0
@@ -218,7 +218,7 @@ def read_fsi(imagem):
     main_fat.fsi_reserved2 = fsi_reserved2
     main_fat.fsi_trail_sig = fsi_trail_sig
 
-# Retorna os dados 
+# Retorna os dados em formato texto de um cluster
 def return_text_from_cluster(imagem, num_cluster) -> str:
     global main_fat
     if num_cluster < main_fat.root_clus:
@@ -226,81 +226,50 @@ def return_text_from_cluster(imagem, num_cluster) -> str:
         return None
     
     first_sector_of_cluster = ((num_cluster-2) * main_fat.sector_per_cluster * main_fat.bytes_per_sec) + main_fat.first_data_sector
-    print(f"@@@@@first_sector_of_cluster {num_cluster} {hex(first_sector_of_cluster)}")
+    # print(f"@@@@@first_sector_of_cluster {num_cluster} {hex(first_sector_of_cluster)}")
 
     cluster_text = imagem[first_sector_of_cluster: first_sector_of_cluster + main_fat.bytes_per_sec * main_fat.sector_per_cluster]
     return cluster_text.decode(errors='backslashreplace')
 
 def print_menu():
     pass
-    print(
-        '''
-        info: exibe informações do disco e da FAT.
+    print('''
+info: exibe informações do disco e da FAT.
+cluster <num>: exibe o conteúdo do bloco num no formato texto.
+pwd: exibe o diretório corrente (caminho absoluto).
+attr <file | dir>: exibe os atributos de um arquivo (file) ou diretório (dir).
+cd <path>: altera o diretório corrente para o definido como path.
+touch <file>: cria o arquivo file com conteúdo vazio.
+mkdir <dir>: cria o diretório dir vazio.
+rm <file>: remove o arquivo file do sistema.
+rmdir <dir>: remove o diretório dir, se estiver vazio.
+cp <source_path> <target_path>: copia um arquivo de origem (source_path) para destino (target_path).
+mv <source_path> <target_path>: move um arquivo de origem (source_path) para destino (target_path).
+rename <file> <newfilename> : renomeia arquivo file para newfilename.
+ls: listar os arquivos e diretórios do diretório corrente.
+        ''')
 
-        cluster <num>: exibe o conteúdo do bloco num no formato texto.
-        
-        pwd: exibe o diretório corrente (caminho absoluto).
+def list_files(imagem):
+    global main_fat
+    num_cluster_diretorio = main_fat.cluster_inicial_diretorio_atual
+    first_sector_of_cluster = ((num_cluster_diretorio-2) * main_fat.sector_per_cluster * main_fat.bytes_per_sec) + main_fat.first_data_sector
 
-        attr <file | dir>: exibe os atributos de um arquivo (file) ou diretório (dir).
+    dados_cluster_atual = imagem[first_sector_of_cluster:first_sector_of_cluster+main_fat.bytes_per_sec]
+    
+    # print("Tentando ler um arquivo da tabela de dados\n\n")
 
-        cd <path>: altera o diretório corrente para o definido como path.
-
-        touch <file>: cria o arquivo file com conteúdo vazio.
-
-        mkdir <dir>: cria o diretório dir vazio.
-
-        rm <file>: remove o arquivo file do sistema.
-
-        rmdir <dir>: remove o diretório dir, se estiver vazio.
-
-        cp <source_path> <target_path>: copia um arquivo de origem (source_path) para destino (target_path).
-
-        mv <source_path> <target_path>: move um arquivo de origem (source_path) para destino (target_path).
-
-        rename <file> <newfilename> : renomeia arquivo file para newfilename.
-
-        ls: listar os arquivos e diretórios do diretório corrente.
-        
-        '''
-    )
-
-def main():
-    with open('myimagefat32.img', 'rb') as imagem_iso:
-        global main_fat
-        a = imagem_iso.read()
-        print_menu()
-
-
-
-        # main_fat = fat()
-        read_BPB(a)
-        read_fsi(a)
-        print('\n\n Printando o obj fat')
-        print(main_fat)
-
-        # FirstSectorofCluster = ((N – 2) * BPB_SecPerClus) + FirstDataSector;
-        # como achar o primeiro setor de um cluster N
-        byte_ret = return_text_from_cluster(a, 2)
-        print(byte_ret)
-       
-       
-
-    print("\n----------------------------------------------------------------\n")
-
-    print("Tentando ler um arquivo da tabela de dados\n\n")
-
-    # print("first_data_sector!!!!!!!!!", hex(main_fat.first_data_sector))
-    inicio_dados = main_fat.first_data_sector 
-    print(f'dasdasd {hex(inicio_dados)}')
-    print(hex(a[inicio_dados + 11]))
-    if (a[inicio_dados + 11] == 15): # caso o bit 11 tenha o valor 0x0f, é uma entrada de nome longa e os dados do arquivo vai ficar nos proximos 32 bytes
+    # print("first_data_sector!!!!!!!!!", hex(first_sector_of_cluster))
+    # return
+    inicio_dados = first_sector_of_cluster 
+    print(hex(imagem[inicio_dados + 11]))
+    if (imagem[inicio_dados + 11] == 15): # caso o bit 11 tenha o valor 0x0f, é uma entrada de nome longa e os dados do arquivo vai ficar nos proximos 32 bytes
         print('entrada de arquivos com nome longo, lendo os 32 proximos bytes')
         inicio_dados = inicio_dados + 32
     
     # DIR_Name e DIR_extension
     # o nome curto tem 8 bytes, e a extensao 3 bytes
-    dir_name = a[inicio_dados: inicio_dados + 8].decode().strip()
-    dir_extension = a[inicio_dados+8: inicio_dados + 11].decode()
+    dir_name = imagem[inicio_dados: inicio_dados + 8].decode().strip()
+    dir_extension = imagem[inicio_dados+8: inicio_dados + 11].decode()
     
     print(f'dir_name + dir extension: {dir_name}.{dir_extension}')
     
@@ -312,7 +281,7 @@ def main():
     # DIRECTORY=0x10 
     # ARCHIVE=0x20 
     # LFN=READ_ONLY|HIDDEN|SYSTEM|VOLUME_ID
-    dir_attr = a[inicio_dados + 11]
+    dir_attr = imagem[inicio_dados + 11]
     if dir_attr == 1:
         print(f'dir_attr: READ_ONLY')
     elif dir_attr == 2:
@@ -327,42 +296,42 @@ def main():
         print(f'dir_attr: ARCHIVE')
 
     # DIR_CrtTimeTenth
-    dir_crt_time_tenth = a[inicio_dados + 13]
+    dir_crt_time_tenth = imagem[inicio_dados + 13]
     print(f'dir_crt_time_tenth: {dir_crt_time_tenth}')
 
     # DIR_CrtTime
     # TODO verificar como faz pra contar as horas
-    # dir_crt_time = bin(int.from_bytes(a[inicio_dados + 14: inicio_dados + 16], 'little'))[2:]
-    dir_crt_time = a[inicio_dados + 14: inicio_dados + 16]
+    # dir_crt_time = bin(int.from_bytes(imagem[inicio_dados + 14: inicio_dados + 16], 'little'))[2:]
+    dir_crt_time = imagem[inicio_dados + 14: inicio_dados + 16]
     # print(f'dir_crt_time: {hex(dir_crt_time)}')
 
     # DIR_CrtDate
     # TODO verificar como faz pra contar as horas
-    dir_crt_date = a[inicio_dados + 16: inicio_dados + 18]
+    dir_crt_date = imagem[inicio_dados + 16: inicio_dados + 18]
     # print(f'dir_crt_time: {hex(dir_crt_time)}')
 
     # DIR_FstClusHI
-    dir_fst_clus_HI = a[inicio_dados + 20: inicio_dados + 22]
+    dir_fst_clus_HI = imagem[inicio_dados + 20: inicio_dados + 22]
     print(f'dir_fst_clus_HI: {dir_fst_clus_HI}')
-    segunda_parte_hi = a[inicio_dados + 21]
-    primeira_parte_hi = a[inicio_dados + 20]
+    segunda_parte_hi = imagem[inicio_dados + 21]
+    primeira_parte_hi = imagem[inicio_dados + 20]
     concat_hi  = hex(segunda_parte_hi) + hex(primeira_parte_hi)[2:] # concatenando os hex, a segunda parte vem primeiro pq é little endian
     print(concat_hi)
     
 
     # DIR_WrtTime
     # TODO verificar como faz pra contar as horas
-    dir_wrt_time = a[inicio_dados + 22: inicio_dados + 24]
+    dir_wrt_time = imagem[inicio_dados + 22: inicio_dados + 24]
     # print(f'dir_crt_time: {hex(dir_crt_time)}')
 
     # DIR_WrtDate
     # TODO verificar como faz pra contar as horas
-    dir_wrt_date = a[inicio_dados + 24: inicio_dados + 26]
+    dir_wrt_date = imagem[inicio_dados + 24: inicio_dados + 26]
 
     # DIR_FstClusLO
-    # dir_fst_clus_LO = a[inicio_dados + 26: inicio_dados + 28]
-    segunda_parte_lo = a[inicio_dados + 27]
-    primeira_parte_lo = a[inicio_dados + 26]
+    # dir_fst_clus_LO = imagem[inicio_dados + 26: inicio_dados + 28]
+    segunda_parte_lo = imagem[inicio_dados + 27]
+    primeira_parte_lo = imagem[inicio_dados + 26]
     concat_lo  = hex(segunda_parte_lo) + hex(primeira_parte_lo)[2:] # concatenando os hex, a segunda parte vem primeiro pq é little endian
     print(concat_lo)
 
@@ -370,8 +339,60 @@ def main():
     print(f'first_cluster_dir: {first_cluster_dir} -> {hex(first_cluster_dir)}')   
 
     # DIR_FileSize
-    dir_file_size = int.from_bytes(a[inicio_dados + 28 : inicio_dados + 32], 'little')
+    dir_file_size = int.from_bytes(imagem[inicio_dados + 28 : inicio_dados + 32], 'little')
     print(f'dir_file_size: {dir_file_size}')
+
+# verifica na tabela FAT, se o cluster passado por parâmetro tem sequência ou acabou por ali
+# caso tenha acabado retorna -1 
+# se tiver sequencia, retorna o valor do proximo cluster no formato int
+def find_next_cluster(imagem, start_cluster) -> int:
+    print("verificando na fat se o cluster termina ali ou tem que ver mais coisa ainda")
+    print(f'start_fat1 {main_fat.start_fat1}')
+
+    start_fat = main_fat.start_fat1
+    offset_tabela_fat  = start_cluster * 4
+
+    proxima_entrada_fat = imagem[start_fat + offset_tabela_fat: start_fat + offset_tabela_fat + 4]
+    proxima_entrada_fat = int.from_bytes(proxima_entrada_fat, 'little')
+    # 268435448 = 0xffffff8
+    # 268435455 = 0xfffffff
+    # caso a entrada seja maior ou igual a 268435448, o arquivo ou diretório acaba ali mesmo
+    if proxima_entrada_fat >= 268435448:
+        print('não existem mais entradas')
+        return -1
+    else:
+        print(f'proxima_entrada_FAT {(proxima_entrada_fat)}')
+        return proxima_entrada_fat
+
+def main():
+    with open('myimagefat32.img', 'rb') as imagem_iso:
+        global main_fat
+        a = imagem_iso.read()
+        # print_menu()
+
+
+
+        read_BPB(a)
+        read_fsi(a)
+        # print('\n\n Printando o obj fat')
+        # print(main_fat)
+
+        # # FirstSectorofCluster = ((N – 2) * BPB_SecPerClus) + FirstDataSector;
+        # # como achar o primeiro setor de um cluster N
+        # byte_ret = return_text_from_cluster(a, 2)
+        # # print(byte_ret)
+       
+        # list_files(a)
+        print(find_next_cluster(a, 6))
+
+       
+
+
+       
+
+    # print("\n----------------------------------------------------------------\n")
+
+    
 
 
 
