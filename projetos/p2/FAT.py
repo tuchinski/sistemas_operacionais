@@ -40,7 +40,8 @@ class fat:
             'data_sec': -1,
             'count_of_clusters': -1,
             'nome_diretorio_atual': '/',
-            'cluster_inicial_diretorio_atual': 2
+            'cluster_inicial_diretorio_atual': 2,
+            'dados_diretorio_atual': {},
         }
         for(prop,default) in prop_defaults.items():
             setattr(self, prop, kwargs.get(prop, default))
