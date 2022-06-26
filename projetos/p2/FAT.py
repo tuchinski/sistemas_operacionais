@@ -34,10 +34,13 @@ class fat:
             'fsi_trail_sig': -1, 
 
             # outros dados
+            'start_fat1': 0,
             'root_dir_sectors': -1,
             'first_data_sector': -1,
             'data_sec': -1,
             'count_of_clusters': -1,
+            'nome_diretorio_atual': '/',
+            'cluster_inicial_diretorio_atual': 2
         }
         for(prop,default) in prop_defaults.items():
             setattr(self, prop, kwargs.get(prop, default))

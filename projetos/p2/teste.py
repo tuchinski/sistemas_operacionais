@@ -1,4 +1,5 @@
 from FAT import fat
+import json
 
 # objeto que representa o imagem FAT
 main_fat = fat()
@@ -249,27 +250,29 @@ rename <file> <newfilename> : renomeia arquivo file para newfilename.
 ls: listar os arquivos e diretórios do diretório corrente.
         ''')
 
-def list_files(imagem):
-    global main_fat
-    num_cluster_diretorio = main_fat.cluster_inicial_diretorio_atual
-    first_sector_of_cluster = ((num_cluster_diretorio-2) * main_fat.sector_per_cluster * main_fat.bytes_per_sec) + main_fat.first_data_sector
-
-    dados_cluster_atual = imagem[first_sector_of_cluster:first_sector_of_cluster+main_fat.bytes_per_sec]
+# extrai as informações dos bytes passados
+def extract_infos(bytes):
+    inicio_dados = 0 
+    # print(hex(bytes[inicio_dados + 11]))
     
-    # print("Tentando ler um arquivo da tabela de dados\n\n")
-
-    # print("first_data_sector!!!!!!!!!", hex(first_sector_of_cluster))
-    # return
-    inicio_dados = first_sector_of_cluster 
-    print(hex(imagem[inicio_dados + 11]))
-    if (imagem[inicio_dados + 11] == 15): # caso o bit 11 tenha o valor 0x0f, é uma entrada de nome longa e os dados do arquivo vai ficar nos proximos 32 bytes
+    # caso o bit 11 tenha o valor 0x0f, é uma entrada de nome longa 
+    # e os dados do arquivo vai ficar nos proximos 32 bytes
+    if (bytes[inicio_dados + 11] == 15): 
         print('entrada de arquivos com nome longo, lendo os 32 proximos bytes')
         inicio_dados = inicio_dados + 32
+        return {
+            'tipo': 'long name'
+        }
+    elif bytes[inicio_dados + 11] == 0:
+        print("não existe nada armazenado nessa posição")
+        return {
+            'tipo': 'vazio'
+        }
     
     # DIR_Name e DIR_extension
     # o nome curto tem 8 bytes, e a extensao 3 bytes
-    dir_name = imagem[inicio_dados: inicio_dados + 8].decode().strip()
-    dir_extension = imagem[inicio_dados+8: inicio_dados + 11].decode()
+    dir_name = bytes[inicio_dados: inicio_dados + 8].decode().strip()
+    dir_extension = bytes[inicio_dados+8: inicio_dados + 11].decode()
     
     print(f'dir_name + dir extension: {dir_name}.{dir_extension}')
     
@@ -281,57 +284,64 @@ def list_files(imagem):
     # DIRECTORY=0x10 
     # ARCHIVE=0x20 
     # LFN=READ_ONLY|HIDDEN|SYSTEM|VOLUME_ID
-    dir_attr = imagem[inicio_dados + 11]
-    if dir_attr == 1:
+    dir_attr_cod = bytes[inicio_dados + 11]
+    dir_attr_name = ''
+    if dir_attr_cod == 1:
         print(f'dir_attr: READ_ONLY')
-    elif dir_attr == 2:
+        dir_attr_name = 'READ_ONLY'
+    elif dir_attr_cod == 2:
         print(f'dir_attr: HIDDEN')
-    elif dir_attr == 4:
+        dir_attr_name = 'HIDDEN'
+    elif dir_attr_cod == 4:
         print(f'dir_attr: SYSTEM')
-    elif dir_attr == 8:
+        dir_attr_name = 'SYSTEM'
+    elif dir_attr_cod == 8:
         print(f'dir_attr: VOLUME_ID')
-    elif dir_attr == 16:
+        dir_attr_name = 'VOLUME_ID'
+    elif dir_attr_cod == 16:
         print(f'dir_attr: DIRECTORY')
-    elif dir_attr == 32:
+        dir_attr_name = 'DIRECTORY'
+    elif dir_attr_cod == 32:
         print(f'dir_attr: ARCHIVE')
+        dir_attr_name = 'ARCHIVE'
 
     # DIR_CrtTimeTenth
-    dir_crt_time_tenth = imagem[inicio_dados + 13]
+    dir_crt_time_tenth = bytes[inicio_dados + 13]
     print(f'dir_crt_time_tenth: {dir_crt_time_tenth}')
 
     # DIR_CrtTime
     # TODO verificar como faz pra contar as horas
-    # dir_crt_time = bin(int.from_bytes(imagem[inicio_dados + 14: inicio_dados + 16], 'little'))[2:]
-    dir_crt_time = imagem[inicio_dados + 14: inicio_dados + 16]
+    # dir_crt_time = bin(int.from_bytes(bytes[inicio_dados + 14: inicio_dados + 16], 'little'))[2:]
+    dir_crt_time = bytes[inicio_dados + 14: inicio_dados + 16]
     # print(f'dir_crt_time: {hex(dir_crt_time)}')
 
     # DIR_CrtDate
     # TODO verificar como faz pra contar as horas
-    dir_crt_date = imagem[inicio_dados + 16: inicio_dados + 18]
+    dir_crt_date = bytes[inicio_dados + 16: inicio_dados + 18]
     # print(f'dir_crt_time: {hex(dir_crt_time)}')
 
     # DIR_FstClusHI
-    dir_fst_clus_HI = imagem[inicio_dados + 20: inicio_dados + 22]
+    dir_fst_clus_HI = bytes[inicio_dados + 20: inicio_dados + 22]
     print(f'dir_fst_clus_HI: {dir_fst_clus_HI}')
-    segunda_parte_hi = imagem[inicio_dados + 21]
-    primeira_parte_hi = imagem[inicio_dados + 20]
+    segunda_parte_hi = bytes[inicio_dados + 21]
+    primeira_parte_hi = bytes[inicio_dados + 20]
     concat_hi  = hex(segunda_parte_hi) + hex(primeira_parte_hi)[2:] # concatenando os hex, a segunda parte vem primeiro pq é little endian
     print(concat_hi)
     
 
     # DIR_WrtTime
     # TODO verificar como faz pra contar as horas
-    dir_wrt_time = imagem[inicio_dados + 22: inicio_dados + 24]
+    dir_wrt_time = bytes[inicio_dados + 22: inicio_dados + 24]
     # print(f'dir_crt_time: {hex(dir_crt_time)}')
 
     # DIR_WrtDate
     # TODO verificar como faz pra contar as horas
-    dir_wrt_date = imagem[inicio_dados + 24: inicio_dados + 26]
+    dir_wrt_date = bytes[inicio_dados + 24: inicio_dados + 26]
 
     # DIR_FstClusLO
-    # dir_fst_clus_LO = imagem[inicio_dados + 26: inicio_dados + 28]
-    segunda_parte_lo = imagem[inicio_dados + 27]
-    primeira_parte_lo = imagem[inicio_dados + 26]
+    # dir_fst_clus_LO = bytes[inicio_dados + 26: inicio_dados + 28]
+    segunda_parte_lo = bytes[inicio_dados + 27]
+    primeira_parte_lo = bytes[inicio_dados + 26]
     concat_lo  = hex(segunda_parte_lo) + hex(primeira_parte_lo)[2:] # concatenando os hex, a segunda parte vem primeiro pq é little endian
     print(concat_lo)
 
@@ -339,15 +349,76 @@ def list_files(imagem):
     print(f'first_cluster_dir: {first_cluster_dir} -> {hex(first_cluster_dir)}')   
 
     # DIR_FileSize
-    dir_file_size = int.from_bytes(imagem[inicio_dados + 28 : inicio_dados + 32], 'little')
+    dir_file_size = int.from_bytes(bytes[inicio_dados + 28 : inicio_dados + 32], 'little')
     print(f'dir_file_size: {dir_file_size}')
+
+    # retorna os dados encontrados do arquivo
+    # ! importante: esta faltando as datas
+    # todo: datas
+    return {
+        "tipo": dir_attr_cod,
+        "dir_name": dir_name,
+        "dir_extension": dir_extension,
+        "dir_attr_cod": dir_attr_cod,
+        "dir_attr_name": dir_attr_name,
+        'dir_crt_time_tenth': dir_crt_time_tenth,
+        'concat_hi': concat_hi,
+        'first_cluster_dir': first_cluster_dir,
+        'dir_file_size': dir_file_size,
+    }
+
+def print_ls(lista_itens):
+    for item in lista_itens:
+        if item["dir_attr_cod"] == 32:
+            print(f'(file){item["dir_name"]}.{item["dir_extension"]}')
+        elif item["dir_attr_cod"] == 16:
+            print(f'(directory){item["dir_name"]}')
+            
+
+def list_files(imagem):
+    global main_fat
+    num_cluster_diretorio = main_fat.cluster_inicial_diretorio_atual
+    first_sector_of_cluster = ((num_cluster_diretorio-2) * main_fat.sector_per_cluster * main_fat.bytes_per_sec) + main_fat.first_data_sector
+
+
+    dados_cluster_atual = imagem[first_sector_of_cluster:first_sector_of_cluster+main_fat.bytes_per_sec]
+    next_cluster = find_next_cluster(imagem, num_cluster_diretorio)
+
+    # Verifica se o cluster atual é o final, se não for concatena os dados
+    # se for só passa pra listagem dos dados
+    while next_cluster != -1:
+        pass
+    
+    count = 32
+    infos_diretorio = [] # dados extraidos do diretorio
+    for x in range(int(len(dados_cluster_atual) / 32)):
+        info_extraida = extract_infos(imagem[ first_sector_of_cluster + (count*x) : first_sector_of_cluster + (count*(x+1)) ])
+        
+        if info_extraida['tipo'] == 'vazio':
+            break
+        # ! ignorando por enquanto nomes longos dos arquivos
+        if info_extraida['tipo'] != 'long name':
+            infos_diretorio.append(info_extraida)
+        
+    # print(f'info extraida: {json.dumps(infos_diretorio, indent=4)}')
+    print_ls(infos_diretorio)
+        
+    
+
+
+    
+    # print("Tentando ler um arquivo da tabela de dados\n\n")
+
+    # print("first_data_sector!!!!!!!!!", hex(first_sector_of_cluster))
+    # return
+    
 
 # verifica na tabela FAT, se o cluster passado por parâmetro tem sequência ou acabou por ali
 # caso tenha acabado retorna -1 
 # se tiver sequencia, retorna o valor do proximo cluster no formato int
 def find_next_cluster(imagem, start_cluster) -> int:
-    print("verificando na fat se o cluster termina ali ou tem que ver mais coisa ainda")
-    print(f'start_fat1 {main_fat.start_fat1}')
+    # print("verificando na fat se o cluster termina ali ou tem que ver mais coisa ainda")
+    # print(f'start_fat1 {main_fat.start_fat1}')
 
     start_fat = main_fat.start_fat1
     offset_tabela_fat  = start_cluster * 4
@@ -382,8 +453,8 @@ def main():
         # byte_ret = return_text_from_cluster(a, 2)
         # # print(byte_ret)
        
-        # list_files(a)
-        print(find_next_cluster(a, 6))
+        list_files(a)
+        # print(find_next_cluster(a, 6))
 
        
 
