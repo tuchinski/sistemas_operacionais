@@ -4,7 +4,7 @@ import json
 # objeto que representa o imagem FAT
 main_fat = fat()
 
-def read_BPB(imagem):
+def  read_BPB(imagem):
         global main_fat
         # BS_jmpBoot
         jmpBoot = imagem[0:3]
@@ -13,117 +13,114 @@ def read_BPB(imagem):
         # jmpBoot[0] = 0xeb | 0xe9
         # jmpBoot[1] = 0x?? | 0x??
         # jmpBoot[2] = 0x90 | 0x??
-        print(f"jmpBoot: {hex(jmpBoot[0])} {hex(jmpBoot[1])} {hex(jmpBoot[2])}")
-        main_fat.jmp_boot = jmpBoot
+        # print(f"jmpBoot: {hex(jmpBoot[0])} {hex(jmpBoot[1])} {hex(jmpBoot[2])}")
+        
         
         # somente um campo com um nome
         # BS_OEMName
         oem_name = imagem[3:11].decode()
-        print(f"OEM Name: {oem_name}")
+        # print(f"OEM Name: {oem_name}")
 
         # qtde de bytes por setor
         # precisa ter os valores 512, 1024, 2048 or 4096
         # BPB_BytsPerSec
         # bytes_per_sec = imagem[11:13]
         bytes_per_sec = int.from_bytes(imagem[11:13],'little')
-        print(f"bytes per sector: {bytes_per_sec}")
 
         # setores por unidades alocadas
         # tem que ser potência de 2 e maior que 0
         # BPB_SecPerClus
         sector_per_cluster = imagem[13]
-        print(f"Sector per clusters: {sector_per_cluster}")
+        # print(f"Sector per clusters: {sector_per_cluster}")
 
         # numero de setores reservados
         # BPB_RsvdSecCnt
         # reserved_sectors = imagem[14:16]
         reserved_sectors = int.from_bytes(imagem[14:16],'little')
-        print(f"Reserved Sectors: {reserved_sectors}")
+        # print(f"Reserved Sectors: {reserved_sectors}")
 
         # numero de estruturas FAT no disco
         # precisa ser 2
         # BPB_NumFATs
         num_fats = imagem[16]
-        print(f"Number of FAT data structures on the volume: {num_fats}")
+        # print(f"Number of FAT data structures on the volume: {num_fats}")
 
         # Valor padrao 0xf8
         # BPB_Media
         media = imagem[21]
-        print(f"Media: {hex(media)}")
+        # print(f"Media: {hex(media)}")
 
         # Setores por trilha
         # BPB_SecPerTrk
         sec_per_trk = imagem[24:26]
-        print(f"Sectors per track: {int.from_bytes(sec_per_trk,'little')}")
+        # print(f"Sectors per track: {int.from_bytes(sec_per_trk,'little')}")
 
         # Number of heads for interrupt 0x13
         # BPB_NumHeads
         num_heads = imagem[26:28]
-        print(f"Number of heads: {int.from_bytes(num_heads,'little')}")
+        # print(f"Number of heads: {int.from_bytes(num_heads,'little')}")
 
         # total de setores de 32 bits
         # BPB_TotSec32
         # tot_sec_32 = imagem[32:36]
         tot_sec_32 = int.from_bytes(imagem[32:36],'little')
-        print(f"total sectors: {tot_sec_32}")
+        # print(f"total sectors: {tot_sec_32}")
 
         # Setores por FAT
         # BPB_FATSz32
         # fat_Sz_32 = imagem[36:40]
         fat_Sz_32 = int.from_bytes(imagem[36:40],'little')
         # print(f"FAT32 32-bit count of sectors occupied by ONE FAT: {fat_Sz_32}")
-        print(f"Sectors occupied by FAT: {fat_Sz_32}")
+        #aqui!@!@@!!@!@!
+        # print(f"Sectors occupied by FAT: {fat_Sz_32}")
 
         # tamanho da FAT em bytes
         fat_size_bytes = fat_Sz_32 * bytes_per_sec
-        print(f"FAT size: {fat_size_bytes} bytes")
+        # print(f"FAT size: {fat_size_bytes} bytes")
 
         # flags externas
         # BPB_ExtFlags
         ext_flags = imagem[40:42]
-        print(f"external flags: {ext_flags}")
+        # print(f"external flags: {ext_flags}")
 
         # número da versão
         # doc da microsoft é 0:0
         # BPB_FSVer
         fs_ver = imagem[42:44]
-        print(f"version number: {fs_ver}")
+        # print(f"version number: {fs_ver}")
 
         # Cluster raiz
         # Geralmente valor é 2
         # BPB_RootClus
         root_clus = int.from_bytes(imagem[44:48],'little')
-        print(f"root cluster: {root_clus}")
+        # print(f"root cluster: {root_clus}")
 
         # número do setor do FSINFO
         # BPB_FSInfo
         fs_info = imagem[48:50]
-        print(f"Sector number of FSINFO: {int.from_bytes(fs_info,'little')}")
+        # print(f"Sector number of FSINFO: {int.from_bytes(fs_info,'little')}")
 
         # indicates the sector number in the reserved area of the volume of a copy of the boot record.
         # indica o numero do setor na area reservada do volume da copia do boot record
         # padrao = 6
         # BPB_BkBootSec
         bk_boot_sec = imagem[50:52]
-        print(f"sector number in the reserved area of the volume of a copy of the boot record: {int.from_bytes(bk_boot_sec,'little')}")
+        # print(f"sector number in the reserved area of the volume of a copy of the boot record: {int.from_bytes(bk_boot_sec,'little')}")
 
         # bytes reservados
         # geralmente é tudo 0
         # BPB_Reserved
         reserved = imagem[52:64]
-        print(f"Reserved: {reserved}")
+        # print(f"Reserved: {reserved}")
 
         # nome do tipo
         # sempre vai ser FAT32
         # BS_FilSysType
         fil_sys_type = imagem[82:90]
-        print(f"FAT type: {fil_sys_type.decode()}")
-
-        # validacoes extras
-        print(imagem[510]) # tem que ser igual a 0x55 ou 85
-        print(imagem[511]) # tem que ser igual a 0xaa ou 170
+        # print(f"FAT type: {fil_sys_type.decode()}")
 
         # Atribuindo os valores encontrados para o objeto principal
+        main_fat.jmp_boot = jmpBoot
         main_fat.oem_name = oem_name
         main_fat.bytes_per_sec = bytes_per_sec
         main_fat.sector_per_cluster = sector_per_cluster
@@ -148,67 +145,76 @@ def read_BPB(imagem):
         # o BPB_RootEntCnt na FAT32 sempre tem o valor 0
         # por isso o root_dir_sector vai ser 0 tbm na FAT32
         main_fat.root_dir_sectors = int(((0*32) + (bytes_per_sec - 1)) / bytes_per_sec)
-        print(f"root_dir_sectors {main_fat.root_dir_sectors}")
+        # print(f"root_dir_sectors {main_fat.root_dir_sectors}")
 
         # FirstDataSector = BPB_ResvdSecCnt + (BPB_NumFATs * FATSz) + RootDirSectors;
         main_fat.first_data_sector = (reserved_sectors * bytes_per_sec) + (num_fats * fat_size_bytes) + main_fat.root_dir_sectors
-        print(f"first_data_sector {hex(main_fat.first_data_sector)}")
+        # print(f"first_data_sector {hex(main_fat.first_data_sector)}")
 
         # DataSec = TotSec – (BPB_ResvdSecCnt + (BPB_NumFATs * FATSz) + RootDirSectors);
         main_fat.data_sec = tot_sec_32 - (reserved_sectors + (num_fats * fat_Sz_32) + main_fat.root_dir_sectors)
-        print(f"{tot_sec_32} - ({reserved_sectors} + ({num_fats} * {fat_Sz_32}) + {main_fat.root_dir_sectors})")
-        print(f"data_sec {main_fat.data_sec}")
+        # print(f"{tot_sec_32} - ({reserved_sectors} + ({num_fats} * {fat_Sz_32}) + {main_fat.root_dir_sectors})")
+        # print(f"data_sec {main_fat.data_sec}")
 
         # CountofClusters = DataSec / BPB_SecPerClus;
         main_fat.count_of_clusters = int(main_fat.data_sec / sector_per_cluster)
-        print(f"count_of_clusters {main_fat.count_of_clusters}")
+        # print(f"count_of_clusters {main_fat.count_of_clusters}")
 
 def read_fsi(imagem):
     global main_fat
-    print("\n----------------------------------------------------------------\n")
-    print("FAT32 FSInfo Sector Structure and Backup Boot Sector\n")
+    # print("\n----------------------------------------------------------------\n")
+    # print("FAT32 FSInfo Sector Structure and Backup Boot Sector\n")
     
+    # os dados da FSInfo começam logo após o BPB, no segundo setor do disco
+    start_FSInfo = main_fat.bytes_per_sec
+
     # dados FAT32 FSInfo Sector Structure and Backup Boot Sector
     # FSI_LeadSig
     # o valor tem que ser 0x41615252
-    start_FSInfo = main_fat.bytes_per_sec
     fsi_lead_sig = int.from_bytes(imagem[start_FSInfo:start_FSInfo+4], 'little')
-    print(f'fsi_lead_sig {hex(fsi_lead_sig)}')
+    if fsi_lead_sig != 1096897106:
+        print("ERRO: VALOR FSI_LEAD_SIG DIVERGENTE")
+        exit()
 
     # FSI_Reserved1
     # campo reservado
     # tem que ser inicializado com 0
     fsi_reserved1 = int.from_bytes(imagem[start_FSInfo+4 : start_FSInfo + 484], 'little')
-    print(f'fsi_reserved1 {fsi_reserved1}')
+    # print(f'fsi_reserved1 {fsi_reserved1}')
 
     # FSI_StrucSig
     # o valor deve ser 0x61417272.
     fsi_struc_sig = int.from_bytes(imagem[start_FSInfo + 484: start_FSInfo + 488], 'little')
-    print(f'fsi_struc_sig {hex(fsi_struc_sig)}')
+    if fsi_struc_sig != 1631679090:
+        print("ERRO: VALOR FSI_STRUC_SIG DIVERGENTE")
+        exit()
 
     # FSI_Free_Count
     # ultima contagem de clusters livres
     # for 0xFFFFFFFF, então a contagem é desconhecida e precisa ser calculada
     fsi_free_count =  int.from_bytes(imagem[start_FSInfo + 488: start_FSInfo + 492], 'little')
-    print(f'fsi_free_count {fsi_free_count}')
+    # print(f'fsi_free_count {fsi_free_count}')
 
     # FSI_Nxt_Free
     # indica onde o driver pode começar a procurar por clusters livres
     # caso tenha o valor 0xFFFFFFFF vai ter que começar do cluster 2 mesmo
     fsi_nxt_free = int.from_bytes(imagem[start_FSInfo + 492: start_FSInfo + 496], 'little')
-    print(f'fsi_nxt_free {fsi_nxt_free}')
+    # print(f'fsi_nxt_free {fsi_nxt_free}')
 
     # FSI_Reserved2
     # campo reservado
     # tem que ser inicializado com 0
     fsi_reserved2 = int.from_bytes(imagem[start_FSInfo+496 : start_FSInfo + 508], 'little')
-    print(f'fsi_reserved2 {fsi_reserved2}')
+    # print(f'fsi_reserved2 {fsi_reserved2}')
 
     # FSI_TrailSig
     # valor tem que ser 0xAA550000
     # Valida que é de fato um FSInfo sector
     fsi_trail_sig = int.from_bytes(imagem[start_FSInfo + 508: start_FSInfo + 512], 'little')
-    print(f'fsi_trail_sig {hex(fsi_trail_sig)}')
+    if fsi_trail_sig != 2857697280:
+        print("ERRO: VALOR FSI_TRAIL_SIG DIVERGENTE")
+        exit()
+    # print(f'fsi_trail_sig {hex(fsi_trail_sig)}')
     
     # atribuindo os valores para o objeto principal
     main_fat.fsi_lead_sig = fsi_lead_sig
@@ -248,6 +254,40 @@ mv <source_path> <target_path>: move um arquivo de origem (source_path) para des
 rename <file> <newfilename> : renomeia arquivo file para newfilename.
 ls: listar os arquivos e diretórios do diretório corrente.
         ''')
+
+# imprime todas as informações coletadas do disco
+def print_infos():
+    # BPB Info
+    print(f"jmpBoot: {hex(main_fat.jmp_boot[0])} {hex(main_fat.jmp_boot[1])} {hex(main_fat.jmp_boot[2])}")
+    print(f"OEM Name: {main_fat.oem_name}")
+    print(f"Bytes per sector: {main_fat.bytes_per_sec}")
+    print(f"Sector per clusters: {main_fat.sector_per_cluster}")
+    print(f"Reserved Sectors: {main_fat.reserved_sectors}")
+    print(f"Number of FAT data structures: {main_fat.num_fats}")
+    print(f"Media: {hex(main_fat.media)}")
+    print(f"Sectors per track: {int.from_bytes(main_fat.sec_per_trk,'little')}")
+    print(f"Number of heads: {int.from_bytes(main_fat.num_heads,'little')}")
+    print(f"Total Sectors: {main_fat.tot_sec_32}")
+    print(f"Total Sectors occupied by ONE FAT: {main_fat.fat_Sz_32}")
+    print(f"Sectors occupied by FAT: {main_fat.fat_Sz_32}")
+    print(f"FAT size: {main_fat.fat_size_bytes} bytes")
+    print(f"external flags: {main_fat.ext_flags}")
+    print(f"version number: {main_fat.fs_ver}")
+    print(f"root cluster: {main_fat.root_clus}")
+    print(f"Sector number of FSINFO: {int.from_bytes(main_fat.fs_info,'little')}")
+    print(f"Sector number of a copy of the boot record: {int.from_bytes(main_fat.bk_boot_sec,'little')}")
+    print(f"Reserved: {main_fat.reserved_bytes}")
+    print(f"FAT type: {main_fat.fil_sys_type.decode()}")
+
+    print(f"Root Dir Sectors: {main_fat.root_dir_sectors}")
+    print(f"First Data Sector: {hex(main_fat.first_data_sector)}")
+    print(f"Data Sector: {main_fat.data_sec}")
+    print(f"Count of Clusters: {main_fat.count_of_clusters}")
+
+    for num in range(main_fat.num_fats):
+        print(f'Start address of FAT{num+1}: {hex((main_fat.reserved_sectors * main_fat.bytes_per_sec) + (num  * main_fat.fat_size_bytes ))}')
+
+    # FSInfo data
 
 # extrai as informações dos bytes passados
 def extract_infos(bytes):
@@ -451,7 +491,7 @@ def main():
             if comando[0].lower() == 'exit':
                 exit = 1
             elif comando[0] == 'info':
-                print('entrando no comando info')
+                print_infos()
             elif comando[0] == 'cluster':
                 if len(comando) != 2 or comando[1].isnumeric() == False:
                     print('cluster <num>: exibe o conteúdo do bloco num no formato texto.')
@@ -482,21 +522,6 @@ def main():
                 list_files(a)
             else:
                 print_menu()
-
-        # print(find_next_cluster(a, 6))
-
-       
-
-
-       
-
-    # print("\n----------------------------------------------------------------\n")
-
-    
-
-
-
-
 
 if __name__ == '__main__':
     main()
