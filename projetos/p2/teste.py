@@ -223,11 +223,10 @@ def read_fsi(imagem):
 def return_text_from_cluster(imagem, num_cluster) -> str:
     global main_fat
     if num_cluster < main_fat.root_clus:
-        print(f"Os clusters de dados começam em {main_fat.root_clus}")
-        return None
+        # print()
+        return f"Os clusters de dados começam em {main_fat.root_clus}"
     
     first_sector_of_cluster = ((num_cluster-2) * main_fat.sector_per_cluster * main_fat.bytes_per_sec) + main_fat.first_data_sector
-    # print(f"@@@@@first_sector_of_cluster {num_cluster} {hex(first_sector_of_cluster)}")
 
     cluster_text = imagem[first_sector_of_cluster: first_sector_of_cluster + main_fat.bytes_per_sec * main_fat.sector_per_cluster]
     return cluster_text.decode(errors='backslashreplace')
@@ -253,18 +252,17 @@ ls: listar os arquivos e diretórios do diretório corrente.
 # extrai as informações dos bytes passados
 def extract_infos(bytes):
     inicio_dados = 0 
-    # print(hex(bytes[inicio_dados + 11]))
     
     # caso o bit 11 tenha o valor 0x0f, é uma entrada de nome longa 
     # e os dados do arquivo vai ficar nos proximos 32 bytes
     if (bytes[inicio_dados + 11] == 15): 
-        print('entrada de arquivos com nome longo, lendo os 32 proximos bytes')
+        ###print('entrada de arquivos com nome longo, lendo os 32 proximos bytes')
         inicio_dados = inicio_dados + 32
         return {
             'tipo': 'long name'
         }
     elif bytes[inicio_dados + 11] == 0:
-        print("não existe nada armazenado nessa posição")
+        ### print("não existe nada armazenado nessa posição")
         return {
             'tipo': 'vazio'
         }
@@ -274,7 +272,7 @@ def extract_infos(bytes):
     dir_name = bytes[inicio_dados: inicio_dados + 8].decode().strip()
     dir_extension = bytes[inicio_dados+8: inicio_dados + 11].decode()
     
-    print(f'dir_name + dir extension: {dir_name}.{dir_extension}')
+    ###print(f'dir_name + dir extension: {dir_name}.{dir_extension}')
     
     # DIR_Attr 
     # READ_ONLY=0x01 
@@ -287,27 +285,27 @@ def extract_infos(bytes):
     dir_attr_cod = bytes[inicio_dados + 11]
     dir_attr_name = ''
     if dir_attr_cod == 1:
-        print(f'dir_attr: READ_ONLY')
+        ###print(f'dir_attr: READ_ONLY')
         dir_attr_name = 'READ_ONLY'
     elif dir_attr_cod == 2:
-        print(f'dir_attr: HIDDEN')
+        ###print(f'dir_attr: HIDDEN')
         dir_attr_name = 'HIDDEN'
     elif dir_attr_cod == 4:
-        print(f'dir_attr: SYSTEM')
+        ###print(f'dir_attr: SYSTEM')
         dir_attr_name = 'SYSTEM'
     elif dir_attr_cod == 8:
-        print(f'dir_attr: VOLUME_ID')
+        ###print(f'dir_attr: VOLUME_ID')
         dir_attr_name = 'VOLUME_ID'
     elif dir_attr_cod == 16:
-        print(f'dir_attr: DIRECTORY')
+        ###print(f'dir_attr: DIRECTORY')
         dir_attr_name = 'DIRECTORY'
     elif dir_attr_cod == 32:
-        print(f'dir_attr: ARCHIVE')
+        ###print(f'dir_attr: ARCHIVE')
         dir_attr_name = 'ARCHIVE'
 
     # DIR_CrtTimeTenth
     dir_crt_time_tenth = bytes[inicio_dados + 13]
-    print(f'dir_crt_time_tenth: {dir_crt_time_tenth}')
+    ###print(f'dir_crt_time_tenth: {dir_crt_time_tenth}')
 
     # DIR_CrtTime
     # TODO verificar como faz pra contar as horas
@@ -322,11 +320,11 @@ def extract_infos(bytes):
 
     # DIR_FstClusHI
     dir_fst_clus_HI = bytes[inicio_dados + 20: inicio_dados + 22]
-    print(f'dir_fst_clus_HI: {dir_fst_clus_HI}')
+    ###print(f'dir_fst_clus_HI: {dir_fst_clus_HI}')
     segunda_parte_hi = bytes[inicio_dados + 21]
     primeira_parte_hi = bytes[inicio_dados + 20]
     concat_hi  = hex(segunda_parte_hi) + hex(primeira_parte_hi)[2:] # concatenando os hex, a segunda parte vem primeiro pq é little endian
-    print(concat_hi)
+    ###print(concat_hi)
     
 
     # DIR_WrtTime
@@ -343,14 +341,14 @@ def extract_infos(bytes):
     segunda_parte_lo = bytes[inicio_dados + 27]
     primeira_parte_lo = bytes[inicio_dados + 26]
     concat_lo  = hex(segunda_parte_lo) + hex(primeira_parte_lo)[2:] # concatenando os hex, a segunda parte vem primeiro pq é little endian
-    print(concat_lo)
+    ###print(concat_lo)
 
     first_cluster_dir = int(concat_hi + concat_lo[2:], 16)
-    print(f'first_cluster_dir: {first_cluster_dir} -> {hex(first_cluster_dir)}')   
+    ###print(f'first_cluster_dir: {first_cluster_dir} -> {hex(first_cluster_dir)}')   
 
     # DIR_FileSize
     dir_file_size = int.from_bytes(bytes[inicio_dados + 28 : inicio_dados + 32], 'little')
-    print(f'dir_file_size: {dir_file_size}')
+    ###print(f'dir_file_size: {dir_file_size}')
 
     # retorna os dados encontrados do arquivo
     # ! importante: esta faltando as datas
@@ -370,11 +368,11 @@ def extract_infos(bytes):
 def print_ls(lista_itens):
     for item in lista_itens:
         if item["dir_attr_cod"] == 32:
-            print(f'(file){item["dir_name"]}.{item["dir_extension"]}')
+            print(f'(file){item["dir_name"]}.{item["dir_extension"]}', end="   ")
         elif item["dir_attr_cod"] == 16:
-            print(f'(directory){item["dir_name"]}')
+            print(f'(directory){item["dir_name"]}', end="   ")
             
-
+# lista os arquivos do diretorio atual tendo como padrão o diretorio raiz
 def list_files(imagem):
     global main_fat
     num_cluster_diretorio = main_fat.cluster_inicial_diretorio_atual
@@ -401,17 +399,8 @@ def list_files(imagem):
             infos_diretorio.append(info_extraida)
         
     # print(f'info extraida: {json.dumps(infos_diretorio, indent=4)}')
+    main_fat.dados_diretorio_atual = infos_diretorio
     print_ls(infos_diretorio)
-        
-    
-
-
-    
-    # print("Tentando ler um arquivo da tabela de dados\n\n")
-
-    # print("first_data_sector!!!!!!!!!", hex(first_sector_of_cluster))
-    # return
-    
 
 # verifica na tabela FAT, se o cluster passado por parâmetro tem sequência ou acabou por ali
 # caso tenha acabado retorna -1 
@@ -429,10 +418,10 @@ def find_next_cluster(imagem, start_cluster) -> int:
     # 268435455 = 0xfffffff
     # caso a entrada seja maior ou igual a 268435448, o arquivo ou diretório acaba ali mesmo
     if proxima_entrada_fat >= 268435448:
-        print('não existem mais entradas')
+        ###print('não existem mais entradas')
         return -1
     else:
-        print(f'proxima_entrada_FAT {(proxima_entrada_fat)}')
+        ###print(f'proxima_entrada_FAT {(proxima_entrada_fat)}')
         return proxima_entrada_fat
 
 def main():
@@ -453,7 +442,47 @@ def main():
         # byte_ret = return_text_from_cluster(a, 2)
         # # print(byte_ret)
        
-        list_files(a)
+        # list_files(a)
+        exit = 0
+        while exit != 1:
+            print(f"\nfatshell: [img{main_fat.nome_diretorio_atual}]$ ", end="")
+            comando = input().split(" ")
+            
+            if comando[0].lower() == 'exit':
+                exit = 1
+            elif comando[0] == 'info':
+                print('entrando no comando info')
+            elif comando[0] == 'cluster':
+                if len(comando) != 2 or comando[1].isnumeric() == False:
+                    print('cluster <num>: exibe o conteúdo do bloco num no formato texto.')
+                    continue
+                 
+                print(return_text_from_cluster(a, int(comando[1])), end="")
+            elif comando[0] == 'pwd':
+                print(main_fat.nome_diretorio_atual, end='')
+            elif comando[0] == 'attr':
+                print("entrando no comando attr")
+            elif comando[0] == 'cd':
+                print("entrando no comando cd")
+            elif comando[0] == 'touch':
+                print("entrando no comando touch")
+            elif comando[0] == 'mkdir':
+                print("entrando no comando mkdir")
+            elif comando[0] == 'rm':
+                print("entrando no comando rm")
+            elif comando[0] == 'rmdir':
+                print("entrando no comando rmdir")
+            elif comando[0] == 'cp':
+                print("entrando no comando cp")
+            elif comando[0] == 'mv':
+                print("entrando no comando mv")
+            elif comando[0] == 'rename':
+                print("entrando no comando rename")
+            elif comando[0] == 'ls':
+                list_files(a)
+            else:
+                print_menu()
+
         # print(find_next_cluster(a, 6))
 
        
