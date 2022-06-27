@@ -561,8 +561,9 @@ def create_file_directory(imagem, file_name, file_type):
         if file_name.split('.')[0].upper() == item['dir_name']:
             if item['dir_attr_cod'] == 16:
                 print("ERRO: já existe um diretório com o mesmo nome")
-            elif item['dir_attr_cod'] == 20 and file_name.split('.')[1].upper() == item['dir_extension']:
+            elif item['dir_attr_cod'] == 32 and file_name.split('.')[1].upper() == item['dir_extension'].upper():
                 print('ERRO: já existe um arquivo com o mesmo nome')
+                return 
 
     # criar o arquivo de entrada dos dados
     filename_split = file_name.split('.')
