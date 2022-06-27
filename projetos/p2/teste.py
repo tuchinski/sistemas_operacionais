@@ -310,7 +310,7 @@ def extract_infos(bytes):
     # DIR_Name e DIR_extension
     # o nome curto tem 8 bytes, e a extensao 3 bytes
     dir_name = bytes[inicio_dados: inicio_dados + 8].decode().strip()
-    dir_extension = bytes[inicio_dados+8: inicio_dados + 11].decode()
+    dir_extension = bytes[inicio_dados+8: inicio_dados + 11].decode().strip()
     
     ###print(f'dir_name + dir extension: {dir_name}.{dir_extension}')
     
@@ -400,7 +400,6 @@ def extract_infos(bytes):
         "dir_attr_cod": dir_attr_cod,
         "dir_attr_name": dir_attr_name,
         'dir_crt_time_tenth': dir_crt_time_tenth,
-        'concat_hi': concat_hi,
         'first_cluster_dir': first_cluster_dir,
         'dir_file_size': dir_file_size,
     }
@@ -440,7 +439,7 @@ def list_files(imagem):
         
     # print(f'info extraida: {json.dumps(infos_diretorio, indent=4)}')
     main_fat.dados_diretorio_atual = infos_diretorio
-    print_ls(infos_diretorio)
+    return infos_diretorio
 
 # verifica na tabela FAT, se o cluster passado por parâmetro tem sequência ou acabou por ali
 # caso tenha acabado retorna -1 
@@ -464,13 +463,27 @@ def find_next_cluster(imagem, start_cluster) -> int:
         ###print(f'proxima_entrada_FAT {(proxima_entrada_fat)}')
         return proxima_entrada_fat
 
+# mostra os atributos do arquivo ou diretorio selecionado
+def show_attributes(name):
+    # print(f"name: {name}")
+    # print(json.dumps(main_fat.dados_diretorio_atual, indent=4))
+    nome_e_extensao = name.split('.')
+    for item in main_fat.dados_diretorio_atual:
+        if item['dir_name'] == nome_e_extensao[0].upper():
+            if (len(nome_e_extensao) == 1 and item['dir_extension'] == '') or (nome_e_extensao[1].upper() == item['dir_extension']):
+                # se entrar aqui é o arquivo ou diretorio que estamos procurando
+                print(f"Type: {item['dir_attr_name']}")
+                print(f"Name: {item['dir_name']}", end="")
+                if(item['dir_attr_cod'] != 16): # se entrar no if, é um diretório 
+                    print(f".{item['dir_extension']}", end='')
+                    print(f"\nSize: {item['dir_file_size']} bytes")
+                # todo: precisa incluir as datas
+
+
 def main():
     with open('myimagefat32.img', 'rb') as imagem_iso:
         global main_fat
         a = imagem_iso.read()
-        # print_menu()
-
-
 
         read_BPB(a)
         read_fsi(a)
@@ -482,7 +495,7 @@ def main():
         # byte_ret = return_text_from_cluster(a, 2)
         # # print(byte_ret)
        
-        # list_files(a)
+        list_files(a)
         exit = 0
         while exit != 1:
             print(f"\nfatshell: [img{main_fat.nome_diretorio_atual}]$ ", end="")
@@ -496,12 +509,17 @@ def main():
                 if len(comando) != 2 or comando[1].isnumeric() == False:
                     print('cluster <num>: exibe o conteúdo do bloco num no formato texto.')
                     continue
-                 
                 print(return_text_from_cluster(a, int(comando[1])), end="")
+            elif comando[0] == 'ls':
+                print_ls(list_files(a))
             elif comando[0] == 'pwd':
                 print(main_fat.nome_diretorio_atual, end='')
             elif comando[0] == 'attr':
-                print("entrando no comando attr")
+                if len(comando) != 2 or comando[1].isspace():
+                    print('attr <file | dir>: exibe os atributos de um arquivo (file) ou diretório (dir)')
+                    continue
+                show_attributes(comando[1])
+
             elif comando[0] == 'cd':
                 print("entrando no comando cd")
             elif comando[0] == 'touch':
@@ -518,8 +536,6 @@ def main():
                 print("entrando no comando mv")
             elif comando[0] == 'rename':
                 print("entrando no comando rename")
-            elif comando[0] == 'ls':
-                list_files(a)
             else:
                 print_menu()
 
