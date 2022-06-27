@@ -466,7 +466,7 @@ def find_next_cluster(imagem, start_cluster) -> int:
 # mostra os atributos do arquivo ou diretorio selecionado
 def show_attributes(name):
     # print(f"name: {name}")
-    # print(json.dumps(main_fat.dados_diretorio_atual, indent=4))
+    print(json.dumps(main_fat.dados_diretorio_atual, indent=4))
     nome_e_extensao = name.split('.')
     for item in main_fat.dados_diretorio_atual:
         if item['dir_name'] == nome_e_extensao[0].upper():
@@ -478,6 +478,29 @@ def show_attributes(name):
                     print(f".{item['dir_extension']}", end='')
                     print(f"\nSize: {item['dir_file_size']} bytes")
                 # todo: precisa incluir as datas
+
+# faz o processo de entrar em um diretorio 
+def enter_directory(imagem, nome_dir):
+    for item in main_fat.dados_diretorio_atual:
+        if (item['dir_name'] == nome_dir.upper()) and (not item['dir_extension']) and item['dir_attr_cod'] == 16:
+            # confirmando que é tem o mesmo nome e é um diretório
+            if item['dir_name'] == '..':
+                main_fat.nome_diretorio_atual = "/".join(main_fat.nome_diretorio_atual.split('/')[:-1])
+                if item['first_cluster_dir'] == 0:
+                    item['first_cluster_dir'] = main_fat.root_clus
+                    main_fat.nome_diretorio_atual = '/'
+            elif item['dir_name'] == '.':
+                pass                            
+            else:
+                if main_fat.nome_diretorio_atual == '/':
+                    main_fat.nome_diretorio_atual =  main_fat.nome_diretorio_atual + item['dir_name'] 
+                else: 
+                    main_fat.nome_diretorio_atual =  main_fat.nome_diretorio_atual + "/" + item['dir_name'] 
+    
+            main_fat.cluster_inicial_diretorio_atual = item['first_cluster_dir']
+            list_files(imagem) # atualiza os dados do diretorio atual
+            return
+    print("Diretorio invalido")
 
 
 def main():
@@ -521,7 +544,10 @@ def main():
                 show_attributes(comando[1])
 
             elif comando[0] == 'cd':
-                print("entrando no comando cd")
+                if len(comando) != 2 or comando[1].isspace():
+                    print('cd <path>: altera o diretório corrente para o definido como path.')
+                    continue
+                enter_directory(a, comando[1])
             elif comando[0] == 'touch':
                 print("entrando no comando touch")
             elif comando[0] == 'mkdir':
