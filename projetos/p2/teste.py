@@ -287,6 +287,13 @@ def print_infos():
     for num in range(main_fat.num_fats):
         print(f'Start address of FAT{num+1}: {hex((main_fat.reserved_sectors * main_fat.bytes_per_sec) + (num  * main_fat.fat_size_bytes ))}')
 
+# retorna o inicio de um cluster de dados
+def return_start_data_cluster(imagem, num_cluster):
+    if num_cluster < main_fat.root_clus:
+        # print()
+        return f"Os clusters de dados começam em {main_fat.root_clus}"
+    
+    return ((num_cluster-2) * main_fat.sector_per_cluster * main_fat.bytes_per_sec) + main_fat.first_data_sector
 
 # extrai as informações dos bytes passados
 def extract_infos(bytes):
@@ -592,7 +599,7 @@ def create_file_directory(imagem, file_name, file_type):
     dir_NT_res = int.to_bytes(0, 1, 'little')
     
     prox_espaco_livre = main_fat.fsi_nxt_free + 1
-    bytes_prox_espaco_livre = int.to_bytes(prox_espaco_livre, 4, 'little')
+    
     
     # todo: arrumar a hora e data
     dir_crt_time_tenth = int.to_bytes(0, 1, 'little')
@@ -601,21 +608,19 @@ def create_file_directory(imagem, file_name, file_type):
     dir_lst_acc_date = int.to_bytes(0, 2, 'little')
     
 
-    dir_fst_clus_HI = bytes_prox_espaco_livre[2:]
     dir_wrt_time = int.to_bytes(0, 2, 'little')
     dir_wrt_date = int.to_bytes(0, 2, 'little')
-    dir_Fst_clusLO = bytes_prox_espaco_livre[0:2]
     dir_File_size  = int.to_bytes(0, 4, 'little')
 
+    bytes_prox_espaco_livre = int.to_bytes(prox_espaco_livre, 4, 'little')
+    dir_Fst_clusLO = bytes_prox_espaco_livre[0:2]
+    dir_fst_clus_HI = bytes_prox_espaco_livre[2:]
+
+
     entrada_diretorio_bytes = dir_name + dir_extension + dir_attr + dir_NT_res + dir_crt_time_tenth + dir_crt_time + dir_crt_date + dir_lst_acc_date + dir_fst_clus_HI + dir_wrt_time + dir_wrt_date + dir_Fst_clusLO + dir_File_size
-    
+
     if len(entrada_diretorio_bytes) != 32:
         print("ERRO: a entrada criada para o diretório está incorreta")
-    # procurando espaço para criar arquivo
-    
-    # print(f'prox_espaco_livre {prox_espaco_livre}')
-    
-
     if verify_empty_fat(imagem, prox_espaco_livre) == False:
         print("erro ao encontrar espaço livre!")
         exit()
@@ -626,6 +631,39 @@ def create_file_directory(imagem, file_name, file_type):
     # colocar a entrada no diretório corrente
     imagem[main_fat.inicio_proxima_entrada_dir_atual: main_fat.inicio_proxima_entrada_dir_atual+32] = entrada_diretorio_bytes
 
+    # # criando um arquivo
+    # if file_type == 32:
+
+
+    
+    # criando um diretorio
+    if file_type == 16:
+        # precisa criar os arquivos . e .. no novo diretorio
+        
+        bytes_arquivo_ponto = b'.          '
+        bytes_arquivo_pontoPonto = b'..         '
+
+        # criando apenas o enderecamento do cluster do dir ..
+        # porque do dir . é o mesmo endereço em que a pasta vai ser criada
+        cluster_dir_atual = main_fat.cluster_inicial_diretorio_atual
+        if cluster_dir_atual == main_fat.root_clus:
+            cluster_dir_atual = 0
+
+        bytes_cluster_dir_atual = int.to_bytes(cluster_dir_atual, 4, 'little')
+
+        dir_pontoPonto_Fst_clusLO = bytes_cluster_dir_atual[0:2]
+        dir_pontoPonto_fst_clus_HI = bytes_cluster_dir_atual[2:]
+
+        entrada_diretorio_bytes_ponto = bytes_arquivo_ponto + dir_attr + dir_NT_res + dir_crt_time_tenth + dir_crt_time + dir_crt_date + dir_lst_acc_date + dir_fst_clus_HI + dir_wrt_time + dir_wrt_date + dir_Fst_clusLO + dir_File_size
+        entrada_diretorio_bytes_pontoPonto = bytes_arquivo_pontoPonto + dir_attr + dir_NT_res + dir_crt_time_tenth + dir_crt_time + dir_crt_date + dir_lst_acc_date + dir_pontoPonto_fst_clus_HI + dir_wrt_time + dir_wrt_date + dir_pontoPonto_Fst_clusLO + dir_File_size
+
+        if len(entrada_diretorio_bytes_ponto) != 32 and len(entrada_diretorio_bytes_pontoPonto)!=32:
+            print("ERRO: a entrada criada para os arquivos . e .. do diretório estao incorretas")
+
+        start_cluster_dir = return_start_data_cluster(imagem, prox_espaco_livre)
+        imagem[start_cluster_dir: start_cluster_dir+32] = entrada_diretorio_bytes_ponto
+        imagem[start_cluster_dir+32: start_cluster_dir+64] = entrada_diretorio_bytes_pontoPonto
+        
     persist_in_disk(imagem)
 
                             
@@ -654,7 +692,7 @@ def main():
         print(f"\nfatshell: [img{main_fat.nome_diretorio_atual}]$ ", end="")
         comando = input().split(" ")
         
-        if comando[0].lower() == 'sair':
+        if comando[0].lower() == 'exit':
             sair = 1
         elif comando[0] == 'info':
             print_infos()
@@ -685,7 +723,11 @@ def main():
             # cria um arquivo, por isso esta sendo passado o valor 32 
             create_file_directory(a, comando[1], 32) 
         elif comando[0] == 'mkdir':
-            print("entrando no comando mkdir")
+            if len(comando) != 2 or comando[1].isspace():
+                print('mkdir <dir>: cria o diretório dir vazio')
+                continue
+            # cria um diretorio, por isso esta sendo passado o valor 16
+            create_file_directory(a, comando[1], 16) 
         elif comando[0] == 'rm':
             print("entrando no comando rm")
         elif comando[0] == 'rmdir':
