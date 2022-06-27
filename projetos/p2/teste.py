@@ -4,7 +4,7 @@ import json
 # objeto que representa o imagem FAT
 main_fat = fat()
 
-def  read_BPB(imagem):
+def read_BPB(imagem):
         global main_fat
         # BS_jmpBoot
         jmpBoot = imagem[0:3]
@@ -287,7 +287,6 @@ def print_infos():
     for num in range(main_fat.num_fats):
         print(f'Start address of FAT{num+1}: {hex((main_fat.reserved_sectors * main_fat.bytes_per_sec) + (num  * main_fat.fat_size_bytes ))}')
 
-    # FSInfo data
 
 # extrai as informações dos bytes passados
 def extract_infos(bytes):
@@ -426,12 +425,14 @@ def list_files(imagem):
     while next_cluster != -1:
         pass
     
+    # tamanho da entrada de um arquivo dentro do cluster de diretorio
     count = 32
     infos_diretorio = [] # dados extraidos do diretorio
     for x in range(int(len(dados_cluster_atual) / 32)):
         info_extraida = extract_infos(imagem[ first_sector_of_cluster + (count*x) : first_sector_of_cluster + (count*(x+1)) ])
         
         if info_extraida['tipo'] == 'vazio':
+            main_fat.inicio_proxima_entrada_dir_atual = first_sector_of_cluster + (count*x)
             break
         # ! ignorando por enquanto nomes longos dos arquivos
         if info_extraida['tipo'] != 'long name':
@@ -502,68 +503,200 @@ def enter_directory(imagem, nome_dir):
             return
     print("Diretorio invalido")
 
+# encontra e retorna o cluster x na fat
+def find_cluster_fat(imagem, cluster):
+    start_fat = main_fat.start_fat1
+    start_cluster = start_fat + (4*cluster)
+    return start_cluster
+
+# verifica se o cluster está vazio na FAT
+def verify_empty_fat(imagem, cluster) -> bool:
+    start_cluster = find_cluster_fat(imagem, cluster)
+
+    data_cluster = int.from_bytes(imagem[start_cluster : start_cluster + 4], 'little')
+    print(f'data_cluster {data_cluster}')
+    if data_cluster == 0:
+        return True
+    else:
+        return False
+
+# define um cluster na fat como utilizado
+def get_cluster_fat(imagem, cluster):
+    # alterando na FAT
+    start_cluster = find_cluster_fat(imagem, cluster)
+    
+    # valor inteiro que representa que a fat ta sendo utilizada
+    # e não tem mais nenhum node
+    valor_fat_utilizado = 268435455 
+    bytes_fat = int.to_bytes(valor_fat_utilizado, 4, 'little')
+    
+    # alterando os valores nas FATs
+    for x in range(main_fat.num_fats):
+        inicio_cluster =  start_cluster + (main_fat.fat_size_bytes * x)
+        fim_cluster = start_cluster + (main_fat.fat_size_bytes * x) + 4
+        imagem[inicio_cluster :fim_cluster] = bytes_fat
+
+    # alterar os dados na FSInfo
+    # os dados da FSInfo começam logo após o BPB, no segundo setor do disco
+    start_FSInfo = main_fat.bytes_per_sec
+    main_fat.fsi_free_count = main_fat.fsi_free_count - 1
+    main_fat.fsi_nxt_free = main_fat.fsi_nxt_free + 1
+    imagem[start_FSInfo + 488: start_FSInfo + 492] = int.to_bytes(main_fat.fsi_free_count, 4, 'little')
+    imagem[start_FSInfo + 492: start_FSInfo + 496] = int.to_bytes(main_fat.fsi_nxt_free, 4, 'little')
+
+
+# metodo que persiste as alterações no disco
+def persist_in_disk(imagem):
+    # tot_sec_32 * bytes_per_sec
+    with open('myimagefat32.img', 'wb') as imagem_iso:
+        imagem_iso.write(imagem)
+    
+
+# cria um arquivo ou diretório vazio
+def create_file_directory(imagem, file_name, file_type):
+    
+    # validando nome
+    # vendo se tem nome repetido
+    for item in main_fat.dados_diretorio_atual:
+        if file_name.split('.')[0].upper() == item['dir_name']:
+            if item['dir_attr_cod'] == 16:
+                print("ERRO: já existe um diretório com o mesmo nome")
+            elif item['dir_attr_cod'] == 20 and file_name.split('.')[1].upper() == item['dir_extension']:
+                print('ERRO: já existe um arquivo com o mesmo nome')
+
+    # criar o arquivo de entrada dos dados
+    filename_split = file_name.split('.')
+    if len(filename_split[0]) > 8:
+        print("ERRO: ainda sem suporte para nomes com mais de 8 caracteres")
+    
+    # todo: verificar se os caracteres sao validos
+
+
+    dir_name = filename_split[0].upper() # colocando em maiusculo os nomes
+    dir_extension = ''
+    if(len(filename_split) == 2):
+        dir_extension = filename_split[1].upper() # colocando em maiusculo os nomes
+        for _ in range(len(dir_extension),3):
+            dir_extension = dir_extension + " " 
+    else:
+        dir_extension = "   "
+    
+    for _ in range(len(dir_name), 8):
+            dir_name = dir_name + ' '
+    
+    dir_name = dir_name.encode()
+    dir_extension = dir_extension.encode()
+
+    dir_attr = int.to_bytes(file_type, 1, 'little')
+    dir_NT_res = int.to_bytes(0, 1, 'little')
+    
+    prox_espaco_livre = main_fat.fsi_nxt_free + 1
+    bytes_prox_espaco_livre = int.to_bytes(prox_espaco_livre, 4, 'little')
+    
+    # todo: arrumar a hora e data
+    dir_crt_time_tenth = int.to_bytes(0, 1, 'little')
+    dir_crt_time = int.to_bytes(0, 2, 'little')
+    dir_crt_date = int.to_bytes(0, 2, 'little')
+    dir_lst_acc_date = int.to_bytes(0, 2, 'little')
+    
+
+    dir_fst_clus_HI = bytes_prox_espaco_livre[2:]
+    dir_wrt_time = int.to_bytes(0, 2, 'little')
+    dir_wrt_date = int.to_bytes(0, 2, 'little')
+    dir_Fst_clusLO = bytes_prox_espaco_livre[0:2]
+    dir_File_size  = int.to_bytes(0, 4, 'little')
+
+    entrada_diretorio_bytes = dir_name + dir_extension + dir_attr + dir_NT_res + dir_crt_time_tenth + dir_crt_time + dir_crt_date + dir_lst_acc_date + dir_fst_clus_HI + dir_wrt_time + dir_wrt_date + dir_Fst_clusLO + dir_File_size
+    
+    if len(entrada_diretorio_bytes) != 32:
+        print("ERRO: a entrada criada para o diretório está incorreta")
+    # procurando espaço para criar arquivo
+    
+    # print(f'prox_espaco_livre {prox_espaco_livre}')
+    
+
+    if verify_empty_fat(imagem, prox_espaco_livre) == False:
+        print("erro ao encontrar espaço livre!")
+        exit()
+
+    # reservando o valor nas fats e atualizando a FSInfo
+    get_cluster_fat(imagem, prox_espaco_livre)
+
+    # colocar a entrada no diretório corrente
+    imagem[main_fat.inicio_proxima_entrada_dir_atual: main_fat.inicio_proxima_entrada_dir_atual+32] = entrada_diretorio_bytes
+
+    persist_in_disk(imagem)
+
+                            
+
 
 def main():
     with open('myimagefat32.img', 'rb') as imagem_iso:
         global main_fat
         a = imagem_iso.read()
+        a = bytearray(a)
 
-        read_BPB(a)
-        read_fsi(a)
-        # print('\n\n Printando o obj fat')
-        # print(main_fat)
+    read_BPB(a)
+    read_fsi(a)
+    # print('\n\n Printando o obj fat')
+    # print(main_fat)
+    
 
-        # # FirstSectorofCluster = ((N – 2) * BPB_SecPerClus) + FirstDataSector;
-        # # como achar o primeiro setor de um cluster N
-        # byte_ret = return_text_from_cluster(a, 2)
-        # # print(byte_ret)
-       
-        list_files(a)
-        exit = 0
-        while exit != 1:
-            print(f"\nfatshell: [img{main_fat.nome_diretorio_atual}]$ ", end="")
-            comando = input().split(" ")
-            
-            if comando[0].lower() == 'exit':
-                exit = 1
-            elif comando[0] == 'info':
-                print_infos()
-            elif comando[0] == 'cluster':
-                if len(comando) != 2 or comando[1].isnumeric() == False:
-                    print('cluster <num>: exibe o conteúdo do bloco num no formato texto.')
-                    continue
-                print(return_text_from_cluster(a, int(comando[1])), end="")
-            elif comando[0] == 'ls':
-                print_ls(list_files(a))
-            elif comando[0] == 'pwd':
-                print(main_fat.nome_diretorio_atual, end='')
-            elif comando[0] == 'attr':
-                if len(comando) != 2 or comando[1].isspace():
-                    print('attr <file | dir>: exibe os atributos de um arquivo (file) ou diretório (dir)')
-                    continue
-                show_attributes(comando[1])
+    # # FirstSectorofCluster = ((N – 2) * BPB_SecPerClus) + FirstDataSector;
+    # # como achar o primeiro setor de um cluster N
+    # byte_ret = return_text_from_cluster(a, 2)
+    # # print(byte_ret)
+    
+    list_files(a)
+    sair = 0
+    while sair != 1:
+        print(f"\nfatshell: [img{main_fat.nome_diretorio_atual}]$ ", end="")
+        comando = input().split(" ")
+        
+        if comando[0].lower() == 'sair':
+            sair = 1
+        elif comando[0] == 'info':
+            print_infos()
+        elif comando[0] == 'cluster':
+            if len(comando) != 2 or comando[1].isnumeric() == False:
+                print('cluster <num>: exibe o conteúdo do bloco num no formato texto.')
+                continue
+            print(return_text_from_cluster(a, int(comando[1])), end="")
+        elif comando[0] == 'ls':
+            print_ls(list_files(a))
+        elif comando[0] == 'pwd':
+            print(main_fat.nome_diretorio_atual, end='')
+        elif comando[0] == 'attr':
+            if len(comando) != 2 or comando[1].isspace():
+                print('attr <file | dir>: exibe os atributos de um arquivo (file) ou diretório (dir)')
+                continue
+            show_attributes(comando[1])
 
-            elif comando[0] == 'cd':
-                if len(comando) != 2 or comando[1].isspace():
-                    print('cd <path>: altera o diretório corrente para o definido como path.')
-                    continue
-                enter_directory(a, comando[1])
-            elif comando[0] == 'touch':
-                print("entrando no comando touch")
-            elif comando[0] == 'mkdir':
-                print("entrando no comando mkdir")
-            elif comando[0] == 'rm':
-                print("entrando no comando rm")
-            elif comando[0] == 'rmdir':
-                print("entrando no comando rmdir")
-            elif comando[0] == 'cp':
-                print("entrando no comando cp")
-            elif comando[0] == 'mv':
-                print("entrando no comando mv")
-            elif comando[0] == 'rename':
-                print("entrando no comando rename")
-            else:
-                print_menu()
+        elif comando[0] == 'cd':
+            if len(comando) != 2 or comando[1].isspace():
+                print('cd <path>: altera o diretório corrente para o definido como path.')
+                continue
+            enter_directory(a, comando[1])
+        elif comando[0] == 'touch':
+            if len(comando) != 2 or comando[1].isspace():
+                print('touch <file>: cria o arquivo file com conteúdo vazio.')
+                continue
+            # cria um arquivo, por isso esta sendo passado o valor 32 
+            create_file_directory(a, comando[1], 32) 
+        elif comando[0] == 'mkdir':
+            print("entrando no comando mkdir")
+        elif comando[0] == 'rm':
+            print("entrando no comando rm")
+        elif comando[0] == 'rmdir':
+            print("entrando no comando rmdir")
+        elif comando[0] == 'cp':
+            print("entrando no comando cp")
+        elif comando[0] == 'mv':
+            print("entrando no comando mv")
+        elif comando[0] == 'rename':
+            print("entrando no comando rename")
+        else:
+            print_menu()
 
 if __name__ == '__main__':
     main()
