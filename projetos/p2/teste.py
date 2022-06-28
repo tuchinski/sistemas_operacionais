@@ -305,12 +305,17 @@ def extract_infos(bytes):
         ###print('entrada de arquivos com nome longo, lendo os 32 proximos bytes')
         inicio_dados = inicio_dados + 32
         return {
-            'tipo': 'long name'
+            'tipo': 'long name',
         }
     elif bytes[inicio_dados + 11] == 0:
         ### print("não existe nada armazenado nessa posição")
         return {
-            'tipo': 'vazio'
+            'tipo': 'vazio',
+        }
+    elif bytes[0] == 229:
+        # nesse caso a entrada foi deletada e não deve ser mostrada no ls
+        return {
+            'tipo': 'deletado',
         }
     
     # DIR_Name e DIR_extension
@@ -437,12 +442,14 @@ def list_files(imagem):
     infos_diretorio = [] # dados extraidos do diretorio
     for x in range(int(len(dados_cluster_atual) / 32)):
         info_extraida = extract_infos(imagem[ first_sector_of_cluster + (count*x) : first_sector_of_cluster + (count*(x+1)) ])
-        
+        info_extraida['inicio_endereco'] = first_sector_of_cluster + (count*x)
         if info_extraida['tipo'] == 'vazio':
             main_fat.inicio_proxima_entrada_dir_atual = first_sector_of_cluster + (count*x)
             break
+        elif info_extraida['tipo'] == 'deletado': 
+            continue
         # ! ignorando por enquanto nomes longos dos arquivos
-        if info_extraida['tipo'] != 'long name':
+        elif info_extraida['tipo'] != 'long name':
             infos_diretorio.append(info_extraida)
         
     # print(f'info extraida: {json.dumps(infos_diretorio, indent=4)}')
@@ -474,7 +481,7 @@ def find_next_cluster(imagem, start_cluster) -> int:
 # mostra os atributos do arquivo ou diretorio selecionado
 def show_attributes(name):
     # print(f"name: {name}")
-    print(json.dumps(main_fat.dados_diretorio_atual, indent=4))
+    # print(json.dumps(main_fat.dados_diretorio_atual, indent=4))
     nome_e_extensao = name.split('.')
     for item in main_fat.dados_diretorio_atual:
         if item['dir_name'] == nome_e_extensao[0].upper():
@@ -663,11 +670,39 @@ def create_file_directory(imagem, file_name, file_type):
         start_cluster_dir = return_start_data_cluster(imagem, prox_espaco_livre)
         imagem[start_cluster_dir: start_cluster_dir+32] = entrada_diretorio_bytes_ponto
         imagem[start_cluster_dir+32: start_cluster_dir+64] = entrada_diretorio_bytes_pontoPonto
-        
+
     persist_in_disk(imagem)
 
-                            
+# remove um arquivo                            
+def remove_file(imagem, filename): 
+    nome_e_extensao = filename.split('.')
+    for item in main_fat.dados_diretorio_atual:
+        if item['dir_name'] == nome_e_extensao[0].upper():
+            if (nome_e_extensao[1].upper() == item['dir_extension']) and item['dir_attr_cod'] == 32:
+                # file_first_cluster = item['first_cluster_dir']
+                next_cluster = item['first_cluster_dir']
+                while next_cluster != -1:
+                    # liberando o espaço na FAT
+                    start_cluster_fat = find_cluster_fat(imagem, next_cluster)
+                    next_cluster = find_next_cluster(imagem, next_cluster)
+                    for x in range(0,main_fat.num_fats):
+                        fat_offset = (x * main_fat.fat_size_bytes)
+                        start_data_fats = start_cluster_fat + fat_offset
+                        end_data_fats = start_cluster_fat + 4 + fat_offset
+                        imagem[start_data_fats: end_data_fats] = int.to_bytes(0, 4, 'little')
 
+                # atribuindo o valor 0xE5 no inicio da entrada do arquivo
+                # deixando assim, ele excluido                    
+                imagem[item['inicio_endereco']] = 229
+        
+                # alterando os dados da FSinfo
+                start_FSInfo = main_fat.bytes_per_sec
+                main_fat.fsi_free_count = main_fat.fsi_free_count + 1
+                imagem[start_FSInfo + 488: start_FSInfo + 492] = int.to_bytes(main_fat.fsi_free_count, 4, 'little')
+
+                persist_in_disk(imagem)
+
+    
 
 def main():
     with open('myimagefat32.img', 'rb') as imagem_iso:
@@ -729,7 +764,10 @@ def main():
             # cria um diretorio, por isso esta sendo passado o valor 16
             create_file_directory(a, comando[1], 16) 
         elif comando[0] == 'rm':
-            print("entrando no comando rm")
+            if len(comando) != 2 or comando[1].isspace():
+                print('rm <file>: remove o arquivo file do sistema.')
+                continue
+            remove_file(a, comando[1])
         elif comando[0] == 'rmdir':
             print("entrando no comando rmdir")
         elif comando[0] == 'cp':
