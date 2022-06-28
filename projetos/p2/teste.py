@@ -423,9 +423,9 @@ def print_ls(lista_itens):
             print(f'(directory){item["dir_name"]}', end="   ")
             
 # lista os arquivos do diretorio atual tendo como padrão o diretorio raiz
-def list_files(imagem):
-    global main_fat
-    num_cluster_diretorio = main_fat.cluster_inicial_diretorio_atual
+def list_files(imagem, cluster):
+    # global main_fat
+    num_cluster_diretorio = cluster
     first_sector_of_cluster = ((num_cluster_diretorio-2) * main_fat.sector_per_cluster * main_fat.bytes_per_sec) + main_fat.first_data_sector
 
 
@@ -513,7 +513,7 @@ def enter_directory(imagem, nome_dir):
                     main_fat.nome_diretorio_atual =  main_fat.nome_diretorio_atual + "/" + item['dir_name'] 
     
             main_fat.cluster_inicial_diretorio_atual = item['first_cluster_dir']
-            list_files(imagem) # atualiza os dados do diretorio atual
+            list_files(imagem, item['first_cluster_dir']) # atualiza os dados do diretorio atual
             return
     print("Diretorio invalido")
 
@@ -677,31 +677,69 @@ def create_file_directory(imagem, file_name, file_type):
 def remove_file(imagem, filename): 
     nome_e_extensao = filename.split('.')
     for item in main_fat.dados_diretorio_atual:
-        if item['dir_name'] == nome_e_extensao[0].upper():
-            if (nome_e_extensao[1].upper() == item['dir_extension']) and item['dir_attr_cod'] == 32:
-                # file_first_cluster = item['first_cluster_dir']
-                next_cluster = item['first_cluster_dir']
-                while next_cluster != -1:
-                    # liberando o espaço na FAT
-                    start_cluster_fat = find_cluster_fat(imagem, next_cluster)
-                    next_cluster = find_next_cluster(imagem, next_cluster)
-                    for x in range(0,main_fat.num_fats):
-                        fat_offset = (x * main_fat.fat_size_bytes)
-                        start_data_fats = start_cluster_fat + fat_offset
-                        end_data_fats = start_cluster_fat + 4 + fat_offset
-                        imagem[start_data_fats: end_data_fats] = int.to_bytes(0, 4, 'little')
+        if item['dir_attr_cod'] == 32:
+            if item['dir_name'] == nome_e_extensao[0].upper():
+                if len(nome_e_extensao) == 1:
+                    nome_e_extensao[1] = ''
+                if (nome_e_extensao[1].upper() == item['dir_extension']):
+                    # file_first_cluster = item['first_cluster_dir']
+                    next_cluster = item['first_cluster_dir']
+                    while next_cluster != -1:
+                        # liberando o espaço na FAT
+                        start_cluster_fat = find_cluster_fat(imagem, next_cluster)
+                        next_cluster = find_next_cluster(imagem, next_cluster)
+                        for x in range(0,main_fat.num_fats):
+                            fat_offset = (x * main_fat.fat_size_bytes)
+                            start_data_fats = start_cluster_fat + fat_offset
+                            end_data_fats = start_cluster_fat + 4 + fat_offset
+                            imagem[start_data_fats: end_data_fats] = int.to_bytes(0, 4, 'little')
 
-                # atribuindo o valor 0xE5 no inicio da entrada do arquivo
-                # deixando assim, ele excluido                    
-                imagem[item['inicio_endereco']] = 229
-        
-                # alterando os dados da FSinfo
-                start_FSInfo = main_fat.bytes_per_sec
-                main_fat.fsi_free_count = main_fat.fsi_free_count + 1
-                imagem[start_FSInfo + 488: start_FSInfo + 492] = int.to_bytes(main_fat.fsi_free_count, 4, 'little')
+                    # atribuindo o valor 0xE5 no inicio da entrada do arquivo
+                    # deixando assim, ele excluido                    
+                    imagem[item['inicio_endereco']] = 229
+            
+                    # alterando os dados da FSinfo
+                    start_FSInfo = main_fat.bytes_per_sec
+                    main_fat.fsi_free_count = main_fat.fsi_free_count + 1
+                    imagem[start_FSInfo + 488: start_FSInfo + 492] = int.to_bytes(main_fat.fsi_free_count, 4, 'little')
 
-                persist_in_disk(imagem)
+                    persist_in_disk(imagem)
+                    return
+    print("ERRO: arquivo não encontrado")
 
+def remove_dir(imagem, dirname):
+    for item in main_fat.dados_diretorio_atual:
+        if dirname.upper() == item['dir_name'] and item['dir_attr_cod'] == 16:
+            # achou o diretorio
+            arquivos = list_files(imagem, item['first_cluster_dir'])
+            if len(arquivos) > 2:
+                print("ERRO: Diretório não está vazio")
+                return 
+            next_cluster = item['first_cluster_dir']
+
+            while next_cluster != -1:
+                # liberando o espaço na FAT
+                start_cluster_fat = find_cluster_fat(imagem, next_cluster)
+                next_cluster = find_next_cluster(imagem, next_cluster)
+                for x in range(0,main_fat.num_fats):
+                    fat_offset = (x * main_fat.fat_size_bytes)
+                    start_data_fats = start_cluster_fat + fat_offset
+                    end_data_fats = start_cluster_fat + 4 + fat_offset
+                    imagem[start_data_fats: end_data_fats] = int.to_bytes(0, 4, 'little')
+
+            # atribuindo o valor 0xE5 no inicio da entrada do arquivo
+            # deixando assim, ele excluido                    
+            imagem[item['inicio_endereco']] = 229
+    
+            # alterando os dados da FSinfo
+            start_FSInfo = main_fat.bytes_per_sec
+            main_fat.fsi_free_count = main_fat.fsi_free_count + 1
+            imagem[start_FSInfo + 488: start_FSInfo + 492] = int.to_bytes(main_fat.fsi_free_count, 4, 'little')
+            
+            persist_in_disk(imagem)
+            return 
+    print("ERRO: diretório não encontrado")
+    
     
 
 def main():
@@ -721,7 +759,7 @@ def main():
     # byte_ret = return_text_from_cluster(a, 2)
     # # print(byte_ret)
     
-    list_files(a)
+    list_files(a, main_fat.cluster_inicial_diretorio_atual)
     sair = 0
     while sair != 1:
         print(f"\nfatshell: [img{main_fat.nome_diretorio_atual}]$ ", end="")
@@ -737,7 +775,7 @@ def main():
                 continue
             print(return_text_from_cluster(a, int(comando[1])), end="")
         elif comando[0] == 'ls':
-            print_ls(list_files(a))
+            print_ls(list_files(a, main_fat.cluster_inicial_diretorio_atual))
         elif comando[0] == 'pwd':
             print(main_fat.nome_diretorio_atual, end='')
         elif comando[0] == 'attr':
@@ -769,7 +807,10 @@ def main():
                 continue
             remove_file(a, comando[1])
         elif comando[0] == 'rmdir':
-            print("entrando no comando rmdir")
+            if len(comando) != 2 or comando[1].isspace():
+                print('rmdir <dir>: remove o diretório dir, se estiver vazio.')
+                continue
+            remove_dir(a, comando[1])
         elif comando[0] == 'cp':
             print("entrando no comando cp")
         elif comando[0] == 'mv':
