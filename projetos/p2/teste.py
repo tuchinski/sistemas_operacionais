@@ -535,7 +535,7 @@ def verify_empty_fat(imagem, cluster) -> bool:
     start_cluster = find_cluster_fat(imagem, cluster)
 
     data_cluster = int.from_bytes(imagem[start_cluster : start_cluster + 4], 'little')
-    print(f'data_cluster {data_cluster}')
+    # print(f'data_cluster {data_cluster}')
     if data_cluster == 0:
         return True
     else:
@@ -754,7 +754,7 @@ def get_file_content(imagem, start_cluster):
     dados = b''
     next_cluster = start_cluster
     while next_cluster != -1:
-        posicao_inicial_cluster =  return_start_data_cluster(imagem, start_cluster)
+        posicao_inicial_cluster =  return_start_data_cluster(imagem, next_cluster)
         dados = dados + imagem[posicao_inicial_cluster : posicao_inicial_cluster + main_fat.bytes_per_sec]
 
         next_cluster = find_next_cluster(imagem, next_cluster)
@@ -789,14 +789,15 @@ def find_dir_info(imagem, directory):
     return {}
 
 def valid_file_name(name):
-    if name > 8:
+    if len(name) > 8:
         return False 
+    name_extension = name.split('.',1)
+    regex = r"[\"\*\+,\./:;<=>\?\[\\\]\|]+" # caracteres inválidos
     
-    # caracteres inválidos
-    regex = r"[\"\*\+,\./:;<=>\?\[\\\]\|]+"
-    if len(re.findall(regex, name)) != 0:
-        return False
-    
+    for item in name_extension:    
+        if len(re.findall(regex, item)) != 0:
+            return False
+        
     return True
 
 # copia um arquivo para o disco
@@ -819,6 +820,7 @@ def copy_file(imagem, arquivo_origem, arquivo_destino):
         if infos_arquivo_origem == -1: 
             print("ERRO: arquivo de origem não encontrado na imagem")
             return
+
         bytes_arquivo_origem = get_file_content(imagem, infos_arquivo_origem['first_cluster_dir'])[0:infos_arquivo_origem['dir_file_size']]
         estrutura_arquivo_destino = imagem[infos_arquivo_origem['inicio_endereco'] : infos_arquivo_origem['inicio_endereco']+32]
 
@@ -831,10 +833,12 @@ def copy_file(imagem, arquivo_origem, arquivo_destino):
             print("ERRO: arquivo de origem não encontrado no disco")
             return
         
+
         # tem que criar a entrada do arquivo que vai ficar no diretorio
         # criar a estrutura do arquivo que vai ficar no diretorio de destino    
 
-        nome_extensao_arquivo_origem = nome_arquivo_origem.split('.') 
+        nome_extensao_arquivo_origem = arquivo_origem.split('.')
+        nome_extensao_arquivo_origem[0] = nome_extensao_arquivo_origem[0][0:8]
         
         dir_name = nome_extensao_arquivo_origem[0].upper()
         dir_extension = ''
@@ -864,7 +868,7 @@ def copy_file(imagem, arquivo_origem, arquivo_destino):
 
         dir_wrt_time = int.to_bytes(0, 2, 'little')
         dir_wrt_date = int.to_bytes(0, 2, 'little')
-        dir_File_size  = int.to_bytes(infos_arquivo_origem['dir_file_size'], 4, 'little')
+        dir_File_size  = int.to_bytes(len(bytes_arquivo_origem), 4, 'little')
 
         # prox_espaco_livre = main_fat.fsi_nxt_free + 1
         bytes_prox_espaco_livre = int.to_bytes(prox_espaco_livre, 4, 'little')
@@ -878,7 +882,11 @@ def copy_file(imagem, arquivo_origem, arquivo_destino):
             print("ERRO: a entrada criada para o diretório está incorreta")
             return 
         else:
-            estrutura_arquivo_destino = entrada_diretorio_bytes
+            estrutura_arquivo_destino = bytearray(entrada_diretorio_bytes)
+
+        infos_arquivo_origem = {
+            'dir_file_size': len(bytes_arquivo_origem)
+        }
 
     
     if arquivo_destino[0:4] == 'img/':
@@ -889,10 +897,31 @@ def copy_file(imagem, arquivo_origem, arquivo_destino):
         infos_arquivo_destino = find_file_info(imagem, nome_arquivo_destino, main_fat.dados_diretorio_atual['diretorios'])
         if infos_arquivo_destino == -1: 
             # se não um arquivo com esse nome, temos que ver se é um nome valido para criar a copia do arquivo
-            if not valid_file_name(arquivo_destino):
+            if not valid_file_name(nome_arquivo_destino):
                 print("ERRO: nome de destino inválido")
                 return
+        
+            # alterando o nome do arquivo de destino
+            nome_extensao_arquivo_destino = nome_arquivo_destino.split('.') 
+            
+            dir_name = nome_extensao_arquivo_destino[0].upper()
+            dir_extension = ''
 
+            if(len(nome_extensao_arquivo_destino) == 2):
+                dir_extension = nome_extensao_arquivo_destino[1].upper() # colocando em maiusculo os nomes
+                for _ in range(len(dir_extension),3):
+                    dir_extension = dir_extension + " " 
+            else:
+                dir_extension = "   "
+
+            for _ in range(len(dir_name), 8):
+                    dir_name = dir_name + ' '
+            
+            dir_name_destino = dir_name.encode()
+            dir_extension_destino = dir_extension.encode()
+
+            # colocando o nome do arquivo de destino
+            estrutura_arquivo_destino[0:11] = dir_name_destino + dir_extension_destino
             infos_diretorio_destino = main_fat.dados_diretorio_atual
 
         # se for um diretorio, precisa ver se existe um arquivo 
@@ -902,20 +931,32 @@ def copy_file(imagem, arquivo_origem, arquivo_destino):
             if find_file_info(imagem, nome_arquivo_origem, infos_diretorio_destino['diretorios']) != -1:
                print("ERRO: arquivo já existe no diretório de destino")
                return 
-            pass
-        
+            nome_arquivo_destino = nome_arquivo_origem
         # precisa calcular quantos clusters são necessarios para aquele arquivo
+        
+        
+        # verificando quantos clusters são necessários para o arquivo
         qtde_cluster =  ceil(infos_arquivo_origem['dir_file_size']/main_fat.bytes_per_sec)
         espacos_alocados = 0 
+
         # alocando os espacos na fat
-        for x in range(qtde_cluster):
+        # aloca até a qtde de clusters necessarios-1, porque o ultimo cluster
+        # tem que ter o valor 0xfffffff
+        for x in range(qtde_cluster-1):
             if verify_empty_fat(imagem, prox_espaco_livre + x):
-                get_cluster_fat(imagem, prox_espaco_livre + x,prox_espaco_livre + x+1 )
+                get_cluster_fat(imagem, prox_espaco_livre + x, prox_espaco_livre + x+1)
                 espacos_alocados = espacos_alocados + 1
+                
+                byte_inicio_cluster_atual = return_start_data_cluster(imagem, prox_espaco_livre + x)
+                # imagem[byte_inicio_cluster_atual: byte_inicio_cluster_atual+main_fat.]
+        # aloca o ultimo cluster, e 'informa' que é o ultimo mesmo
+        get_cluster_fat(imagem, prox_espaco_livre + espacos_alocados)
+
+        # valida se foram alocados a qtde necessaria de clusters
+        espacos_alocados = espacos_alocados + 1
         if espacos_alocados != qtde_cluster:
             print('ERRO: não foi alocada a qtde necessária de clusters')
             exit()
-
         # como copiamos a entrada no diretorio do arquivo, temos que trocar a entrada
         # do primeiro cluster do arquivo
         bytes_prox_espaco_livre = int.to_bytes(prox_espaco_livre, 4, 'little')
@@ -927,27 +968,18 @@ def copy_file(imagem, arquivo_origem, arquivo_destino):
 
         # gravando a referencia do arquivo no diretorio
         imagem[infos_diretorio_destino['inicio_proxima_entrada_dir']: infos_diretorio_destino['inicio_proxima_entrada_dir']+32] = estrutura_arquivo_destino
-        #!! funcionando com arquivos que usam somente 1 cluster
-        #!! verificar o que ta acontecendo quando tenta com o abc.txt
+        
         byte_inicial_dados = return_start_data_cluster(imagem, prox_espaco_livre)
+        
+
+        # !salvando os dados contiguamente
         imagem[byte_inicial_dados: byte_inicial_dados + infos_arquivo_origem['dir_file_size']] = bytes_arquivo_origem
 
         persist_in_disk(imagem)
-
-
     else:
         # procedimento quando o destino é o disco(pc), e não a imagem
         pass
         
-            
-
-
-
-
-    
-
-
-
 
     # 3 opções
     # img -> img
