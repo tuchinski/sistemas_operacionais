@@ -1085,7 +1085,10 @@ def main():
                 continue
             copy_file(a, comando[1], comando[2])
         elif comando[0] == 'mv':
-            print("entrando no comando mv")
+            if len(comando) != 3 or comando[1].isspace() or comando[2].isspace():
+                print("mv <source_path> <target_path>: move um arquivo de origem (source_path) para destino (target_path).")
+                continue
+            move_file(a, comando[1], comando[2])
         elif comando[0] == 'rename':
             print("entrando no comando rename")
         else:
