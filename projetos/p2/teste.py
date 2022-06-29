@@ -1,3 +1,5 @@
+from math import ceil
+import re
 from FAT import fat
 import json
 
@@ -423,7 +425,10 @@ def print_ls(lista_itens):
             print(f'(directory){item["dir_name"]}', end="   ")
             
 # lista os arquivos do diretorio atual tendo como padrão o diretorio raiz
-def list_files(imagem, cluster):
+# o parametro cluster diz qual cluster deve ser analisado
+# o paramentro define_dir_atual, define se o diretorio que está sendo analisado deve ser
+# o diretorio corrente
+def list_files(imagem, cluster, define_dir_corrente = False):
     # global main_fat
     num_cluster_diretorio = cluster
     first_sector_of_cluster = ((num_cluster_diretorio-2) * main_fat.sector_per_cluster * main_fat.bytes_per_sec) + main_fat.first_data_sector
@@ -434,26 +439,28 @@ def list_files(imagem, cluster):
 
     # Verifica se o cluster atual é o final, se não for concatena os dados
     # se for só passa pra listagem dos dados
+    #todo tem que resolver esse bo aqui
     while next_cluster != -1:
         pass
     
     # tamanho da entrada de um arquivo dentro do cluster de diretorio
     count = 32
-    infos_diretorio = [] # dados extraidos do diretorio
+    infos_diretorio = {'diretorios': []} # dados extraidos do diretorio
     for x in range(int(len(dados_cluster_atual) / 32)):
         info_extraida = extract_infos(imagem[ first_sector_of_cluster + (count*x) : first_sector_of_cluster + (count*(x+1)) ])
         info_extraida['inicio_endereco'] = first_sector_of_cluster + (count*x)
         if info_extraida['tipo'] == 'vazio':
-            main_fat.inicio_proxima_entrada_dir_atual = first_sector_of_cluster + (count*x)
+            infos_diretorio['inicio_proxima_entrada_dir'] = (first_sector_of_cluster + (count*x))
             break
         elif info_extraida['tipo'] == 'deletado': 
             continue
         # ! ignorando por enquanto nomes longos dos arquivos
         elif info_extraida['tipo'] != 'long name':
-            infos_diretorio.append(info_extraida)
+            infos_diretorio['diretorios'].append(info_extraida)
         
     # print(f'info extraida: {json.dumps(infos_diretorio, indent=4)}')
-    main_fat.dados_diretorio_atual = infos_diretorio
+    if define_dir_corrente:
+        main_fat.dados_diretorio_atual = infos_diretorio
     return infos_diretorio
 
 # verifica na tabela FAT, se o cluster passado por parâmetro tem sequência ou acabou por ali
@@ -483,7 +490,7 @@ def show_attributes(name):
     # print(f"name: {name}")
     # print(json.dumps(main_fat.dados_diretorio_atual, indent=4))
     nome_e_extensao = name.split('.')
-    for item in main_fat.dados_diretorio_atual:
+    for item in main_fat.dados_diretorio_atual['diretorios']:
         if item['dir_name'] == nome_e_extensao[0].upper():
             if (len(nome_e_extensao) == 1 and item['dir_extension'] == '') or (nome_e_extensao[1].upper() == item['dir_extension']):
                 # se entrar aqui é o arquivo ou diretorio que estamos procurando
@@ -496,7 +503,7 @@ def show_attributes(name):
 
 # faz o processo de entrar em um diretorio 
 def enter_directory(imagem, nome_dir):
-    for item in main_fat.dados_diretorio_atual:
+    for item in main_fat.dados_diretorio_atual['diretorios']:
         if (item['dir_name'] == nome_dir.upper()) and (not item['dir_extension']) and item['dir_attr_cod'] == 16:
             # confirmando que é tem o mesmo nome e é um diretório
             if item['dir_name'] == '..':
@@ -513,7 +520,7 @@ def enter_directory(imagem, nome_dir):
                     main_fat.nome_diretorio_atual =  main_fat.nome_diretorio_atual + "/" + item['dir_name'] 
     
             main_fat.cluster_inicial_diretorio_atual = item['first_cluster_dir']
-            list_files(imagem, item['first_cluster_dir']) # atualiza os dados do diretorio atual
+            list_files(imagem, item['first_cluster_dir'], True) # atualiza os dados do diretorio atual
             return
     print("Diretorio invalido")
 
@@ -535,13 +542,15 @@ def verify_empty_fat(imagem, cluster) -> bool:
         return False
 
 # define um cluster na fat como utilizado
-def get_cluster_fat(imagem, cluster):
+# o parametro valor, representa o valor a ser inserido na fat
+# se não passar nada, vai ser preenchido como EOC
+def get_cluster_fat(imagem, cluster, valor = 268435455 ):
     # alterando na FAT
     start_cluster = find_cluster_fat(imagem, cluster)
     
     # valor inteiro que representa que a fat ta sendo utilizada
     # e não tem mais nenhum node
-    valor_fat_utilizado = 268435455 
+    valor_fat_utilizado = valor
     bytes_fat = int.to_bytes(valor_fat_utilizado, 4, 'little')
     
     # alterando os valores nas FATs
@@ -571,7 +580,7 @@ def create_file_directory(imagem, file_name, file_type):
     
     # validando nome
     # vendo se tem nome repetido
-    for item in main_fat.dados_diretorio_atual:
+    for item in main_fat.dados_diretorio_atual['diretorios']:
         if file_name.split('.')[0].upper() == item['dir_name']:
             if item['dir_attr_cod'] == 16:
                 print("ERRO: já existe um diretório com o mesmo nome")
@@ -676,7 +685,7 @@ def create_file_directory(imagem, file_name, file_type):
 # remove um arquivo                            
 def remove_file(imagem, filename): 
     nome_e_extensao = filename.split('.')
-    for item in main_fat.dados_diretorio_atual:
+    for item in main_fat.dados_diretorio_atual['diretorios']:
         if item['dir_attr_cod'] == 32:
             if item['dir_name'] == nome_e_extensao[0].upper():
                 if len(nome_e_extensao) == 1:
@@ -708,10 +717,10 @@ def remove_file(imagem, filename):
     print("ERRO: arquivo não encontrado")
 
 def remove_dir(imagem, dirname):
-    for item in main_fat.dados_diretorio_atual:
+    for item in main_fat.dados_diretorio_atual['diretorios']:
         if dirname.upper() == item['dir_name'] and item['dir_attr_cod'] == 16:
             # achou o diretorio
-            arquivos = list_files(imagem, item['first_cluster_dir'])
+            arquivos = list_files(imagem, item['first_cluster_dir'], False)
             if len(arquivos) > 2:
                 print("ERRO: Diretório não está vazio")
                 return 
@@ -740,7 +749,212 @@ def remove_dir(imagem, dirname):
             return 
     print("ERRO: diretório não encontrado")
     
+# retorna todos os bytes de um arquivo dado o cluster inicial
+def get_file_content(imagem, start_cluster):
+    dados = b''
+    next_cluster = start_cluster
+    while next_cluster != -1:
+        posicao_inicial_cluster =  return_start_data_cluster(imagem, start_cluster)
+        dados = dados + imagem[posicao_inicial_cluster : posicao_inicial_cluster + main_fat.bytes_per_sec]
+
+        next_cluster = find_next_cluster(imagem, next_cluster)
     
+    return dados
+
+# encontra as informacoes de um arquivo ou diretorio
+# caso seja informado o tipo do arquivo, o metodo irá fazer a distinção
+# senão acha o primeiro que tiver o mesmo nome
+# ps: o arquivo tem que estar dentro do diretorio
+def find_file_info(imagem, filename, dados_diretorio,filetype = 0):
+    nome_e_extensao = filename.split('.')
+    if len(nome_e_extensao) == 1:
+        nome_e_extensao.append("")
+    for item in dados_diretorio :
+        if item['dir_name'] == nome_e_extensao[0].upper() and item['dir_extension'] == nome_e_extensao[1].upper():
+            if filetype != 0:
+                if item['dir_attr_cod'] == filetype:
+                    return item
+            else:
+                    return item
+
+    return -1
+
+def find_dir_info(imagem, directory):
+    nome_e_extensao = directory.split('.')
+    if len(nome_e_extensao) == 1:
+        nome_e_extensao.append("")
+    for item in main_fat.dados_diretorio_atual['diretorios']:
+        if item['dir_name'] == nome_e_extensao[0].upper() and item['dir_attr_cod'] == 16 and item['dir_extension'] == nome_e_extensao[1].upper():
+            return item
+    return {}
+
+def valid_file_name(name):
+    if name > 8:
+        return False 
+    
+    # caracteres inválidos
+    regex = r"[\"\*\+,\./:;<=>\?\[\\\]\|]+"
+    if len(re.findall(regex, name)) != 0:
+        return False
+    
+    return True
+
+# copia um arquivo para o disco
+# pode receber arquivos da maquina ou do disco
+# /img
+def copy_file(imagem, arquivo_origem, arquivo_destino):
+    # guarda os arquivos do disco
+
+    # print(get_file_content(imagem, 6))
+
+    bytes_arquivo_origem = b'' # representa os bytes do arquivo
+    estrutura_arquivo_destino = b'' # representa a estrutura que fica no diretorio
+    prox_espaco_livre = main_fat.fsi_nxt_free + 1 # proximo cluster livre para escrita do arquivo
+
+    # pegando os bytes do arquivo de origem, se o arquivo for da imagem
+    
+    if arquivo_origem[0:4] == 'img/':
+        nome_arquivo_origem = arquivo_origem[4:]
+        infos_arquivo_origem = find_file_info(imagem, nome_arquivo_origem, main_fat.dados_diretorio_atual['diretorios'],32)
+        if infos_arquivo_origem == -1: 
+            print("ERRO: arquivo de origem não encontrado na imagem")
+            return
+        bytes_arquivo_origem = get_file_content(imagem, infos_arquivo_origem['first_cluster_dir'])[0:infos_arquivo_origem['dir_file_size']]
+        estrutura_arquivo_destino = imagem[infos_arquivo_origem['inicio_endereco'] : infos_arquivo_origem['inicio_endereco']+32]
+
+    else:
+        # pegando os bytes do arquivo de origem, caso ele seja do disco
+        try:
+            with open(arquivo_origem, 'rb') as file:
+                bytes_arquivo_origem = file.read()
+        except FileNotFoundError:
+            print("ERRO: arquivo de origem não encontrado no disco")
+            return
+        
+        # tem que criar a entrada do arquivo que vai ficar no diretorio
+        # criar a estrutura do arquivo que vai ficar no diretorio de destino    
+
+        nome_extensao_arquivo_origem = nome_arquivo_origem.split('.') 
+        
+        dir_name = nome_extensao_arquivo_origem[0].upper()
+        dir_extension = ''
+
+        if(len(nome_extensao_arquivo_origem) == 2):
+            dir_extension = nome_extensao_arquivo_origem[1].upper() # colocando em maiusculo os nomes
+            for _ in range(len(dir_extension),3):
+                dir_extension = dir_extension + " " 
+        else:
+            dir_extension = "   "
+
+        for _ in range(len(dir_name), 8):
+                dir_name = dir_name + ' '
+        
+        dir_name = dir_name.encode()
+        dir_extension = dir_extension.encode()
+
+        dir_attr = int.to_bytes(32, 1, 'little')
+        dir_NT_res = int.to_bytes(0, 1, 'little')    
+        
+        # todo: arrumar a hora e data
+        dir_crt_time_tenth = int.to_bytes(0, 1, 'little')
+        dir_crt_time = int.to_bytes(0, 2, 'little')
+        dir_crt_date = int.to_bytes(0, 2, 'little')
+        dir_lst_acc_date = int.to_bytes(0, 2, 'little')
+        
+
+        dir_wrt_time = int.to_bytes(0, 2, 'little')
+        dir_wrt_date = int.to_bytes(0, 2, 'little')
+        dir_File_size  = int.to_bytes(infos_arquivo_origem['dir_file_size'], 4, 'little')
+
+        # prox_espaco_livre = main_fat.fsi_nxt_free + 1
+        bytes_prox_espaco_livre = int.to_bytes(prox_espaco_livre, 4, 'little')
+        dir_Fst_clusLO = bytes_prox_espaco_livre[0:2]
+        dir_fst_clus_HI = bytes_prox_espaco_livre[2:]
+
+
+        entrada_diretorio_bytes = dir_name + dir_extension + dir_attr + dir_NT_res + dir_crt_time_tenth + dir_crt_time + dir_crt_date + dir_lst_acc_date + dir_fst_clus_HI + dir_wrt_time + dir_wrt_date + dir_Fst_clusLO + dir_File_size
+
+        if len(entrada_diretorio_bytes) != 32:
+            print("ERRO: a entrada criada para o diretório está incorreta")
+            return 
+        else:
+            estrutura_arquivo_destino = entrada_diretorio_bytes
+
+    
+    if arquivo_destino[0:4] == 'img/':
+        # caso o arquivo de destino esteja na imagem
+        nome_arquivo_destino = arquivo_destino[4:]
+        
+        # verifica se tem algum arquivo ou diretorio com o nome de destino
+        infos_arquivo_destino = find_file_info(imagem, nome_arquivo_destino, main_fat.dados_diretorio_atual['diretorios'])
+        if infos_arquivo_destino == -1: 
+            # se não um arquivo com esse nome, temos que ver se é um nome valido para criar a copia do arquivo
+            if not valid_file_name(arquivo_destino):
+                print("ERRO: nome de destino inválido")
+                return
+
+            infos_diretorio_destino = main_fat.dados_diretorio_atual
+
+        # se for um diretorio, precisa ver se existe um arquivo 
+        # com o mesmo nome no diretorio de destino
+        elif infos_arquivo_destino['dir_attr_cod'] == 16:
+            infos_diretorio_destino = list_files(imagem, infos_arquivo_destino['first_cluster_dir'], False)
+            if find_file_info(imagem, nome_arquivo_origem, infos_diretorio_destino['diretorios']) != -1:
+               print("ERRO: arquivo já existe no diretório de destino")
+               return 
+            pass
+        
+        # precisa calcular quantos clusters são necessarios para aquele arquivo
+        qtde_cluster =  ceil(infos_arquivo_origem['dir_file_size']/main_fat.bytes_per_sec)
+        espacos_alocados = 0 
+        # alocando os espacos na fat
+        for x in range(qtde_cluster):
+            if verify_empty_fat(imagem, prox_espaco_livre + x):
+                get_cluster_fat(imagem, prox_espaco_livre + x,prox_espaco_livre + x+1 )
+                espacos_alocados = espacos_alocados + 1
+        if espacos_alocados != qtde_cluster:
+            print('ERRO: não foi alocada a qtde necessária de clusters')
+            exit()
+
+        # como copiamos a entrada no diretorio do arquivo, temos que trocar a entrada
+        # do primeiro cluster do arquivo
+        bytes_prox_espaco_livre = int.to_bytes(prox_espaco_livre, 4, 'little')
+        dir_Fst_clusLO = bytes_prox_espaco_livre[0:2]
+        dir_fst_clus_HI = bytes_prox_espaco_livre[2:]
+
+        estrutura_arquivo_destino[26:28] = dir_Fst_clusLO
+        estrutura_arquivo_destino[20:22] = dir_fst_clus_HI
+
+        # gravando a referencia do arquivo no diretorio
+        imagem[infos_diretorio_destino['inicio_proxima_entrada_dir']: infos_diretorio_destino['inicio_proxima_entrada_dir']+32] = estrutura_arquivo_destino
+        #!! funcionando com arquivos que usam somente 1 cluster
+        #!! verificar o que ta acontecendo quando tenta com o abc.txt
+        byte_inicial_dados = return_start_data_cluster(imagem, prox_espaco_livre)
+        imagem[byte_inicial_dados: byte_inicial_dados + infos_arquivo_origem['dir_file_size']] = bytes_arquivo_origem
+
+        persist_in_disk(imagem)
+
+
+    else:
+        # procedimento quando o destino é o disco(pc), e não a imagem
+        pass
+        
+            
+
+
+
+
+    
+
+
+
+
+    # 3 opções
+    # img -> img
+    # img -> pc
+    # pc -> img
+    
+
 
 def main():
     with open('myimagefat32.img', 'rb') as imagem_iso:
@@ -759,7 +973,7 @@ def main():
     # byte_ret = return_text_from_cluster(a, 2)
     # # print(byte_ret)
     
-    list_files(a, main_fat.cluster_inicial_diretorio_atual)
+    list_files(a, main_fat.cluster_inicial_diretorio_atual, True)
     sair = 0
     while sair != 1:
         print(f"\nfatshell: [img{main_fat.nome_diretorio_atual}]$ ", end="")
@@ -775,7 +989,7 @@ def main():
                 continue
             print(return_text_from_cluster(a, int(comando[1])), end="")
         elif comando[0] == 'ls':
-            print_ls(list_files(a, main_fat.cluster_inicial_diretorio_atual))
+            print_ls(list_files(a, main_fat.cluster_inicial_diretorio_atual, True)['diretorios'])
         elif comando[0] == 'pwd':
             print(main_fat.nome_diretorio_atual, end='')
         elif comando[0] == 'attr':
@@ -812,7 +1026,10 @@ def main():
                 continue
             remove_dir(a, comando[1])
         elif comando[0] == 'cp':
-            print("entrando no comando cp")
+            if len(comando) != 3 or comando[1].isspace() or comando[2].isspace():
+                print("cp <source_path> <target_path>: copia um arquivo de origem (source_path) para destino (target_path).")
+                continue
+            copy_file(a, comando[1], comando[2])
         elif comando[0] == 'mv':
             print("entrando no comando mv")
         elif comando[0] == 'rename':
