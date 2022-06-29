@@ -806,11 +806,10 @@ def valid_file_name(name):
 def copy_file(imagem, arquivo_origem, arquivo_destino):
     # guarda os arquivos do disco
 
-    # print(get_file_content(imagem, 6))
-
     bytes_arquivo_origem = b'' # representa os bytes do arquivo
     estrutura_arquivo_destino = b'' # representa a estrutura que fica no diretorio
     prox_espaco_livre = main_fat.fsi_nxt_free + 1 # proximo cluster livre para escrita do arquivo
+    local_arquivo_origem = 'imagem' # variavel que verifica o local do arquivo de origem. Pode ser imagem ou disco
 
     # pegando os bytes do arquivo de origem, se o arquivo for da imagem
     
@@ -826,6 +825,7 @@ def copy_file(imagem, arquivo_origem, arquivo_destino):
 
     else:
         # pegando os bytes do arquivo de origem, caso ele seja do disco
+        local_arquivo_origem = 'disco'
         try:
             with open(arquivo_origem, 'rb') as file:
                 bytes_arquivo_origem = file.read()
@@ -978,8 +978,11 @@ def copy_file(imagem, arquivo_origem, arquivo_destino):
         persist_in_disk(imagem)
     else:
         # procedimento quando o destino é o disco(pc), e não a imagem
-        pass
-        
+        if local_arquivo_origem == 'disco':
+            print("Erro: arquivo de origem e destino não estão na imagem")
+            return 
+        with open(arquivo_destino, 'wb') as file_destino:
+            file_destino.write(bytes_arquivo_origem)
 
     # 3 opções
     # img -> img
