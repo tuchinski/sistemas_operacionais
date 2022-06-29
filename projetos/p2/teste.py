@@ -1,4 +1,5 @@
 from math import ceil
+import os
 import re
 from FAT import fat
 import json
@@ -803,6 +804,7 @@ def valid_file_name(name):
 # copia um arquivo para o disco
 # pode receber arquivos da maquina ou do disco
 # /img
+# retorna o local do arquivo_origem(vai facilitar o processo de mover)
 def copy_file(imagem, arquivo_origem, arquivo_destino):
     # guarda os arquivos do disco
 
@@ -981,13 +983,30 @@ def copy_file(imagem, arquivo_origem, arquivo_destino):
         if local_arquivo_origem == 'disco':
             print("Erro: arquivo de origem e destino não estão na imagem")
             return 
+        
+        # verifica se o local escolhido é um diretório
+        # se for, coloca o nome do arquivo original para o destino
+        if os.path.isdir(arquivo_destino) and arquivo_destino[-1] != '/':
+            arquivo_destino = arquivo_destino + "/" + nome_arquivo_origem
+        else:
+            arquivo_destino = arquivo_destino + nome_arquivo_origem
+
         with open(arquivo_destino, 'wb') as file_destino:
             file_destino.write(bytes_arquivo_origem)
 
-    # 3 opções
-    # img -> img
-    # img -> pc
-    # pc -> img
+    return local_arquivo_origem
+
+# Move o arquivo de origem para o arquivo destino
+def move_file(imagem, arquivo_origem, arquivo_destino):
+    # mover o arquivo é basicamente copia-lo para o destino
+    # e depois apagar da origem
+    local_arquivo_origem = copy_file(imagem, arquivo_origem, arquivo_destino)
+
+    if local_arquivo_origem == 'imagem':
+        remove_file(imagem, arquivo_origem[4:])
+    else:
+        os.remove(arquivo_origem)
+        
     
 
 
