@@ -674,7 +674,7 @@ def persist_in_disk(imagem:bytearray) -> None:
     persiste as alterações no disco
     """
     # tot_sec_32 * bytes_per_sec
-    with open('myimagefat32.img', 'wb') as imagem_iso:
+    with open(main_fat.name_image, 'wb') as imagem_iso:
         imagem_iso.write(imagem)
     
 def create_file_directory(imagem:bytearray, file_name:str, file_type:int) -> None:
@@ -1213,18 +1213,19 @@ def main():
     """
     função que inicializa o código    
     """
+    global main_fat
 
     # verificando se o nome da iso foi passado como argumento
     if len(sys.argv) != 2:
         print("python3 fatshell.py <nome_iso>")
-        # exit
-        nome_iso = 'myimagefat32.img'
+        exit()
+        # nome_iso = 'myimagefat32.img'
     else:
         nome_iso = sys.argv[1]
+        main_fat.name_image = nome_iso
     
     # abrindo a iso
     with open(nome_iso, 'rb') as imagem_iso:
-        global main_fat
         iso = imagem_iso.read()
         iso = bytearray(iso)
 
@@ -1241,18 +1242,18 @@ def main():
         
         if comando[0].lower() == 'exit':
             sair = 1
-        elif comando[0] == 'info':
+        elif comando[0] == 'info':#!
             print_infos()
-        elif comando[0] == 'cluster':
+        elif comando[0] == 'cluster':#!
             if len(comando) != 2 or comando[1].isnumeric() == False:
                 print('cluster <num>: exibe o conteúdo do bloco num no formato texto.')
                 continue
             print(return_text_from_cluster(iso, int(comando[1])), end="")
         elif comando[0] == 'ls':
             print_ls(list_files(iso, main_fat.cluster_inicial_diretorio_atual, True)['diretorios'])
-        elif comando[0] == 'pwd':
+        elif comando[0] == 'pwd':#!
             print(main_fat.nome_diretorio_atual, end='')
-        elif comando[0] == 'attr':
+        elif comando[0] == 'attr':#!
             if len(comando) != 2 or comando[1].isspace():
                 print('attr <file | dir>: exibe os atributos de um arquivo (file) ou diretório (dir)')
                 continue
