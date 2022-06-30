@@ -578,7 +578,9 @@ def persist_in_disk(imagem):
 
 # cria um arquivo ou diretório vazio
 def create_file_directory(imagem, file_name, file_type):
-    
+    if not valid_file_name(file_name):
+        print("ERRO: nome não é válido")
+
     # validando nome
     # vendo se tem nome repetido
     for item in main_fat.dados_diretorio_atual['diretorios']:
@@ -591,11 +593,6 @@ def create_file_directory(imagem, file_name, file_type):
 
     # criar o arquivo de entrada dos dados
     filename_split = file_name.split('.')
-    if len(filename_split[0]) > 8:
-        print("ERRO: ainda sem suporte para nomes com mais de 8 caracteres")
-    
-    # todo: verificar se os caracteres sao validos
-
 
     dir_name = filename_split[0].upper() # colocando em maiusculo os nomes
     dir_extension = ''
@@ -646,7 +643,7 @@ def create_file_directory(imagem, file_name, file_type):
     get_cluster_fat(imagem, prox_espaco_livre)
 
     # colocar a entrada no diretório corrente
-    imagem[main_fat.inicio_proxima_entrada_dir_atual: main_fat.inicio_proxima_entrada_dir_atual+32] = entrada_diretorio_bytes
+    imagem[main_fat.dados_diretorio_atual['inicio_proxima_entrada_dir']: main_fat.dados_diretorio_atual['inicio_proxima_entrada_dir']+32] = entrada_diretorio_bytes
 
     # # criando um arquivo
     # if file_type == 32:
