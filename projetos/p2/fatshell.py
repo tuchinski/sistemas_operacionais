@@ -493,7 +493,6 @@ def list_files(imagem:bytearray, cluster:int, define_dir_corrente:bool = False)-
 
     # Verifica se o cluster atual é o final, se não for concatena os dados
     # se for só passa pra listagem dos dados
-    # todo tem que resolver esse bo aqui
     while next_cluster != -1:
         start_next_cluster = return_start_data_cluster(next_cluster)
         first_sectors.append(start_next_cluster)
