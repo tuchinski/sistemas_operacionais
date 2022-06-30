@@ -789,8 +789,8 @@ def find_dir_info(imagem, directory):
             return item
     return {}
 
-def valid_file_name(name):
-    if len(name) > 8:
+def valid_file_name(name:str)-> bool:
+    if len(name) > 11:
         return False 
     name_extension = name.split('.',1)
     regex = r"[\"\*\+,\./:;<=>\?\[\\\]\|]+" # caracteres inválidos
@@ -1007,8 +1007,47 @@ def move_file(imagem, arquivo_origem, arquivo_destino):
     else:
         os.remove(arquivo_origem)
         
+# renomeia o arquivo filename para newfilename        
+def rename_file(imagem,filename, new_filename):
+    if not valid_file_name(new_filename):
+        print("ERRO: novo nome de arquivo inválido")
+        return 
+    info_file = find_file_info(imagem, filename, main_fat.dados_diretorio_atual['diretorios'])
+    info_file_new_filename = find_file_info(imagem, new_filename, main_fat.dados_diretorio_atual['diretorios'])
     
+    # Não altera nome de diretorio
+    if info_file['dir_attr_cod'] == 16:
+        print("ERRO:arquivo informado é um diretório")
+        return 
 
+    if info_file_new_filename != -1:
+        print("ERRO:Novo nome de arquivo já existe no diretório")
+        return 
+    
+    # alterando o nome do arquivo de destino
+    nome_extensao_arquivo_destino = new_filename.split('.') 
+    
+    dir_name = nome_extensao_arquivo_destino[0].upper()
+    dir_extension = ''
+
+    if(len(nome_extensao_arquivo_destino) == 2):
+        dir_extension = nome_extensao_arquivo_destino[1].upper() # colocando em maiusculo os nomes
+        for _ in range(len(dir_extension),3):
+            dir_extension = dir_extension + " " 
+    else:
+        dir_extension = "   "
+
+    for _ in range(len(dir_name), 8):
+            dir_name = dir_name + ' '
+    
+    dir_name_destino = dir_name.encode()
+    dir_extension_destino = dir_extension.encode()
+
+    # deslocamento de 11, porque o nome do arquivo tem 11 bytes
+    imagem[info_file['inicio_endereco']:info_file['inicio_endereco'] + 11] = dir_name_destino + dir_extension_destino
+    
+    persist_in_disk(imagem)
+    
 
 def main():
     with open('myimagefat32.img', 'rb') as imagem_iso:
@@ -1059,6 +1098,7 @@ def main():
             enter_directory(a, comando[1])
         elif comando[0] == 'touch':
             if len(comando) != 2 or comando[1].isspace():
+                #! verificar pq ta bugando a img
                 print('touch <file>: cria o arquivo file com conteúdo vazio.')
                 continue
             # cria um arquivo, por isso esta sendo passado o valor 32 
@@ -1090,7 +1130,10 @@ def main():
                 continue
             move_file(a, comando[1], comando[2])
         elif comando[0] == 'rename':
-            print("entrando no comando rename")
+            if len(comando) != 3 or comando[1].isspace() or comando[2].isspace():
+                print("rename <file> <newfilename> : renomeia arquivo file para newfilename")
+                continue
+            rename_file(a, comando[1], comando[2])
         else:
             print_menu()
 
