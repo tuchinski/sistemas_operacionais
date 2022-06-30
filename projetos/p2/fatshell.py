@@ -2,168 +2,180 @@ from math import ceil
 import os
 import re
 from FAT import fat
-import json
+import sys
 
 # objeto que representa o imagem FAT
 main_fat = fat()
 
-def read_BPB(imagem):
-        global main_fat
-        # BS_jmpBoot
-        jmpBoot = imagem[0:3]
-        # instrução de jump para o código de boot
-        # aceitos somente o primeiro ou o segundo
-        # jmpBoot[0] = 0xeb | 0xe9
-        # jmpBoot[1] = 0x?? | 0x??
-        # jmpBoot[2] = 0x90 | 0x??
-        # print(f"jmpBoot: {hex(jmpBoot[0])} {hex(jmpBoot[1])} {hex(jmpBoot[2])}")
-        
-        
-        # somente um campo com um nome
-        # BS_OEMName
-        oem_name = imagem[3:11].decode()
-        # print(f"OEM Name: {oem_name}")
+def read_BPB(imagem:bytearray) -> None:
+    """
+    Realiza a leitura da BPB(BIOS Parameter Block) e armazena os valores 
+    na estrutura FAT global
 
-        # qtde de bytes por setor
-        # precisa ter os valores 512, 1024, 2048 or 4096
-        # BPB_BytsPerSec
-        # bytes_per_sec = imagem[11:13]
-        bytes_per_sec = int.from_bytes(imagem[11:13],'little')
+    :param imagem bytearray|bytes
+    :return None
+    """
+    global main_fat
+    # BS_jmpBoot
+    jmpBoot = imagem[0:3]
+    # instrução de jump para o código de boot
+    # aceitos somente o primeiro ou o segundo
+    # jmpBoot[0] = 0xeb | 0xe9
+    # jmpBoot[1] = 0x?? | 0x??
+    # jmpBoot[2] = 0x90 | 0x??
+    # print(f"jmpBoot: {hex(jmpBoot[0])} {hex(jmpBoot[1])} {hex(jmpBoot[2])}")
+    
+    
+    # somente um campo com um nome
+    # BS_OEMName
+    oem_name = imagem[3:11].decode()
+    # print(f"OEM Name: {oem_name}")
 
-        # setores por unidades alocadas
-        # tem que ser potência de 2 e maior que 0
-        # BPB_SecPerClus
-        sector_per_cluster = imagem[13]
-        # print(f"Sector per clusters: {sector_per_cluster}")
+    # qtde de bytes por setor
+    # precisa ter os valores 512, 1024, 2048 or 4096
+    # BPB_BytsPerSec
+    # bytes_per_sec = imagem[11:13]
+    bytes_per_sec = int.from_bytes(imagem[11:13],'little')
 
-        # numero de setores reservados
-        # BPB_RsvdSecCnt
-        # reserved_sectors = imagem[14:16]
-        reserved_sectors = int.from_bytes(imagem[14:16],'little')
-        # print(f"Reserved Sectors: {reserved_sectors}")
+    # setores por unidades alocadas
+    # tem que ser potência de 2 e maior que 0
+    # BPB_SecPerClus
+    sector_per_cluster = imagem[13]
+    # print(f"Sector per clusters: {sector_per_cluster}")
 
-        # numero de estruturas FAT no disco
-        # precisa ser 2
-        # BPB_NumFATs
-        num_fats = imagem[16]
-        # print(f"Number of FAT data structures on the volume: {num_fats}")
+    # numero de setores reservados
+    # BPB_RsvdSecCnt
+    # reserved_sectors = imagem[14:16]
+    reserved_sectors = int.from_bytes(imagem[14:16],'little')
+    # print(f"Reserved Sectors: {reserved_sectors}")
 
-        # Valor padrao 0xf8
-        # BPB_Media
-        media = imagem[21]
-        # print(f"Media: {hex(media)}")
+    # numero de estruturas FAT no disco
+    # precisa ser 2
+    # BPB_NumFATs
+    num_fats = imagem[16]
+    # print(f"Number of FAT data structures on the volume: {num_fats}")
 
-        # Setores por trilha
-        # BPB_SecPerTrk
-        sec_per_trk = imagem[24:26]
-        # print(f"Sectors per track: {int.from_bytes(sec_per_trk,'little')}")
+    # Valor padrao 0xf8
+    # BPB_Media
+    media = imagem[21]
+    # print(f"Media: {hex(media)}")
 
-        # Number of heads for interrupt 0x13
-        # BPB_NumHeads
-        num_heads = imagem[26:28]
-        # print(f"Number of heads: {int.from_bytes(num_heads,'little')}")
+    # Setores por trilha
+    # BPB_SecPerTrk
+    sec_per_trk = imagem[24:26]
+    # print(f"Sectors per track: {int.from_bytes(sec_per_trk,'little')}")
 
-        # total de setores de 32 bits
-        # BPB_TotSec32
-        # tot_sec_32 = imagem[32:36]
-        tot_sec_32 = int.from_bytes(imagem[32:36],'little')
-        # print(f"total sectors: {tot_sec_32}")
+    # Number of heads for interrupt 0x13
+    # BPB_NumHeads
+    num_heads = imagem[26:28]
+    # print(f"Number of heads: {int.from_bytes(num_heads,'little')}")
 
-        # Setores por FAT
-        # BPB_FATSz32
-        # fat_Sz_32 = imagem[36:40]
-        fat_Sz_32 = int.from_bytes(imagem[36:40],'little')
-        # print(f"FAT32 32-bit count of sectors occupied by ONE FAT: {fat_Sz_32}")
-        #aqui!@!@@!!@!@!
-        # print(f"Sectors occupied by FAT: {fat_Sz_32}")
+    # total de setores de 32 bits
+    # BPB_TotSec32
+    # tot_sec_32 = imagem[32:36]
+    tot_sec_32 = int.from_bytes(imagem[32:36],'little')
+    # print(f"total sectors: {tot_sec_32}")
 
-        # tamanho da FAT em bytes
-        fat_size_bytes = fat_Sz_32 * bytes_per_sec
-        # print(f"FAT size: {fat_size_bytes} bytes")
+    # Setores por FAT
+    # BPB_FATSz32
+    # fat_Sz_32 = imagem[36:40]
+    fat_Sz_32 = int.from_bytes(imagem[36:40],'little')
+    # print(f"FAT32 32-bit count of sectors occupied by ONE FAT: {fat_Sz_32}")
+    #aqui!@!@@!!@!@!
+    # print(f"Sectors occupied by FAT: {fat_Sz_32}")
 
-        # flags externas
-        # BPB_ExtFlags
-        ext_flags = imagem[40:42]
-        # print(f"external flags: {ext_flags}")
+    # tamanho da FAT em bytes
+    fat_size_bytes = fat_Sz_32 * bytes_per_sec
+    # print(f"FAT size: {fat_size_bytes} bytes")
 
-        # número da versão
-        # doc da microsoft é 0:0
-        # BPB_FSVer
-        fs_ver = imagem[42:44]
-        # print(f"version number: {fs_ver}")
+    # flags externas
+    # BPB_ExtFlags
+    ext_flags = imagem[40:42]
+    # print(f"external flags: {ext_flags}")
 
-        # Cluster raiz
-        # Geralmente valor é 2
-        # BPB_RootClus
-        root_clus = int.from_bytes(imagem[44:48],'little')
-        # print(f"root cluster: {root_clus}")
+    # número da versão
+    # doc da microsoft é 0:0
+    # BPB_FSVer
+    fs_ver = imagem[42:44]
+    # print(f"version number: {fs_ver}")
 
-        # número do setor do FSINFO
-        # BPB_FSInfo
-        fs_info = imagem[48:50]
-        # print(f"Sector number of FSINFO: {int.from_bytes(fs_info,'little')}")
+    # Cluster raiz
+    # Geralmente valor é 2
+    # BPB_RootClus
+    root_clus = int.from_bytes(imagem[44:48],'little')
+    # print(f"root cluster: {root_clus}")
 
-        # indicates the sector number in the reserved area of the volume of a copy of the boot record.
-        # indica o numero do setor na area reservada do volume da copia do boot record
-        # padrao = 6
-        # BPB_BkBootSec
-        bk_boot_sec = imagem[50:52]
-        # print(f"sector number in the reserved area of the volume of a copy of the boot record: {int.from_bytes(bk_boot_sec,'little')}")
+    # número do setor do FSINFO
+    # BPB_FSInfo
+    fs_info = imagem[48:50]
+    # print(f"Sector number of FSINFO: {int.from_bytes(fs_info,'little')}")
 
-        # bytes reservados
-        # geralmente é tudo 0
-        # BPB_Reserved
-        reserved = imagem[52:64]
-        # print(f"Reserved: {reserved}")
+    # indicates the sector number in the reserved area of the volume of a copy of the boot record.
+    # indica o numero do setor na area reservada do volume da copia do boot record
+    # padrao = 6
+    # BPB_BkBootSec
+    bk_boot_sec = imagem[50:52]
+    # print(f"sector number in the reserved area of the volume of a copy of the boot record: {int.from_bytes(bk_boot_sec,'little')}")
 
-        # nome do tipo
-        # sempre vai ser FAT32
-        # BS_FilSysType
-        fil_sys_type = imagem[82:90]
-        # print(f"FAT type: {fil_sys_type.decode()}")
+    # bytes reservados
+    # geralmente é tudo 0
+    # BPB_Reserved
+    reserved = imagem[52:64]
+    # print(f"Reserved: {reserved}")
 
-        # Atribuindo os valores encontrados para o objeto principal
-        main_fat.jmp_boot = jmpBoot
-        main_fat.oem_name = oem_name
-        main_fat.bytes_per_sec = bytes_per_sec
-        main_fat.sector_per_cluster = sector_per_cluster
-        main_fat.reserved_sectors = reserved_sectors
-        main_fat.num_fats = num_fats
-        main_fat.media = media
-        main_fat.sec_per_trk = sec_per_trk
-        main_fat.num_heads = num_heads
-        main_fat.tot_sec_32 = tot_sec_32
-        main_fat.fat_Sz_32 = fat_Sz_32
-        main_fat.fat_size_bytes = fat_size_bytes
-        main_fat.ext_flags = ext_flags
-        main_fat.fs_ver = fs_ver
-        main_fat.root_clus = root_clus
-        main_fat.fs_info = fs_info
-        main_fat.bk_boot_sec = bk_boot_sec
-        main_fat.reserved_bytes = reserved
-        main_fat.fil_sys_type = fil_sys_type
-        main_fat.start_fat1 = reserved_sectors * bytes_per_sec
+    # nome do tipo
+    # sempre vai ser FAT32
+    # BS_FilSysType
+    fil_sys_type = imagem[82:90]
+    # print(f"FAT type: {fil_sys_type.decode()}")
 
-        # root_dir_sectors = ((BPB_RootEntCnt * 32) + (BPB_BytsPerSec – 1)) / BPB_BytsPerSec;
-        # o BPB_RootEntCnt na FAT32 sempre tem o valor 0
-        # por isso o root_dir_sector vai ser 0 tbm na FAT32
-        main_fat.root_dir_sectors = int(((0*32) + (bytes_per_sec - 1)) / bytes_per_sec)
-        # print(f"root_dir_sectors {main_fat.root_dir_sectors}")
+    # Atribuindo os valores encontrados para o objeto principal
+    main_fat.jmp_boot = jmpBoot
+    main_fat.oem_name = oem_name
+    main_fat.bytes_per_sec = bytes_per_sec
+    main_fat.sector_per_cluster = sector_per_cluster
+    main_fat.reserved_sectors = reserved_sectors
+    main_fat.num_fats = num_fats
+    main_fat.media = media
+    main_fat.sec_per_trk = sec_per_trk
+    main_fat.num_heads = num_heads
+    main_fat.tot_sec_32 = tot_sec_32
+    main_fat.fat_Sz_32 = fat_Sz_32
+    main_fat.fat_size_bytes = fat_size_bytes
+    main_fat.ext_flags = ext_flags
+    main_fat.fs_ver = fs_ver
+    main_fat.root_clus = root_clus
+    main_fat.fs_info = fs_info
+    main_fat.bk_boot_sec = bk_boot_sec
+    main_fat.reserved_bytes = reserved
+    main_fat.fil_sys_type = fil_sys_type
+    main_fat.start_fat1 = reserved_sectors * bytes_per_sec
 
-        # FirstDataSector = BPB_ResvdSecCnt + (BPB_NumFATs * FATSz) + RootDirSectors;
-        main_fat.first_data_sector = (reserved_sectors * bytes_per_sec) + (num_fats * fat_size_bytes) + main_fat.root_dir_sectors
-        # print(f"first_data_sector {hex(main_fat.first_data_sector)}")
+    # root_dir_sectors = ((BPB_RootEntCnt * 32) + (BPB_BytsPerSec – 1)) / BPB_BytsPerSec;
+    # o BPB_RootEntCnt na FAT32 sempre tem o valor 0
+    # por isso o root_dir_sector vai ser 0 tbm na FAT32
+    main_fat.root_dir_sectors = int(((0*32) + (bytes_per_sec - 1)) / bytes_per_sec)
+    # print(f"root_dir_sectors {main_fat.root_dir_sectors}")
 
-        # DataSec = TotSec – (BPB_ResvdSecCnt + (BPB_NumFATs * FATSz) + RootDirSectors);
-        main_fat.data_sec = tot_sec_32 - (reserved_sectors + (num_fats * fat_Sz_32) + main_fat.root_dir_sectors)
-        # print(f"{tot_sec_32} - ({reserved_sectors} + ({num_fats} * {fat_Sz_32}) + {main_fat.root_dir_sectors})")
-        # print(f"data_sec {main_fat.data_sec}")
+    # FirstDataSector = BPB_ResvdSecCnt + (BPB_NumFATs * FATSz) + RootDirSectors;
+    main_fat.first_data_sector = (reserved_sectors * bytes_per_sec) + (num_fats * fat_size_bytes) + main_fat.root_dir_sectors
+    # print(f"first_data_sector {hex(main_fat.first_data_sector)}")
 
-        # CountofClusters = DataSec / BPB_SecPerClus;
-        main_fat.count_of_clusters = int(main_fat.data_sec / sector_per_cluster)
-        # print(f"count_of_clusters {main_fat.count_of_clusters}")
+    # DataSec = TotSec – (BPB_ResvdSecCnt + (BPB_NumFATs * FATSz) + RootDirSectors);
+    main_fat.data_sec = tot_sec_32 - (reserved_sectors + (num_fats * fat_Sz_32) + main_fat.root_dir_sectors)
+    # print(f"{tot_sec_32} - ({reserved_sectors} + ({num_fats} * {fat_Sz_32}) + {main_fat.root_dir_sectors})")
+    # print(f"data_sec {main_fat.data_sec}")
 
-def read_fsi(imagem):
+    # CountofClusters = DataSec / BPB_SecPerClus;
+    main_fat.count_of_clusters = int(main_fat.data_sec / sector_per_cluster)
+
+def read_fsi(imagem:bytearray) -> None:
+    """
+    Realiza a leitura da FSI(FSInfo)
+
+    :param imagem bytearray|bytes
+    :return None
+    """
     global main_fat
     # print("\n----------------------------------------------------------------\n")
     # print("FAT32 FSInfo Sector Structure and Backup Boot Sector\n")
@@ -228,8 +240,15 @@ def read_fsi(imagem):
     main_fat.fsi_reserved2 = fsi_reserved2
     main_fat.fsi_trail_sig = fsi_trail_sig
 
-# Retorna os dados em formato texto de um cluster
-def return_text_from_cluster(imagem, num_cluster) -> str:
+def return_text_from_cluster(imagem:bytearray, num_cluster:int) -> str:
+    """
+    Retorna os dados em formato texto de um cluster <num_cluster>
+
+    :param imagem bytearray
+    :param num_cluster int
+
+    :return str
+    """
     global main_fat
     if num_cluster < main_fat.root_clus:
         # print()
@@ -241,6 +260,9 @@ def return_text_from_cluster(imagem, num_cluster) -> str:
     return cluster_text.decode(errors='backslashreplace')
 
 def print_menu():
+    """
+    imprime as informaçoes do menu
+    """
     pass
     print('''
 info: exibe informações do disco e da FAT.
@@ -258,8 +280,10 @@ rename <file> <newfilename> : renomeia arquivo file para newfilename.
 ls: listar os arquivos e diretórios do diretório corrente.
         ''')
 
-# imprime todas as informações coletadas do disco
 def print_infos():
+    """
+    imprime todas as informações coletadas do disco
+    """
     # BPB Info
     print(f"jmpBoot: {hex(main_fat.jmp_boot[0])} {hex(main_fat.jmp_boot[1])} {hex(main_fat.jmp_boot[2])}")
     print(f"OEM Name: {main_fat.oem_name}")
@@ -290,16 +314,29 @@ def print_infos():
     for num in range(main_fat.num_fats):
         print(f'Start address of FAT{num+1}: {hex((main_fat.reserved_sectors * main_fat.bytes_per_sec) + (num  * main_fat.fat_size_bytes ))}')
 
-# retorna o inicio de um cluster de dados
-def return_start_data_cluster(imagem, num_cluster):
+def return_start_data_cluster(num_cluster: int) -> int:
+    """
+    retorna o inicio de um cluster de dados
+
+    :param num_cluster
+    
+    :return int
+
+    """
     if num_cluster < main_fat.root_clus:
         # print()
         return f"Os clusters de dados começam em {main_fat.root_clus}"
     
     return ((num_cluster-2) * main_fat.sector_per_cluster * main_fat.bytes_per_sec) + main_fat.first_data_sector
 
-# extrai as informações dos bytes passados
-def extract_infos(bytes):
+def extract_infos(bytes:bytes):
+    """
+    extrai as informações dos bytes passados
+    
+    :param bytes bytes
+
+    :return dict dicionário com os dados extraidos 
+    """
     inicio_dados = 0 
     
     # caso o bit 11 tenha o valor 0x0f, é uma entrada de nome longa 
@@ -418,19 +455,30 @@ def extract_infos(bytes):
         'dir_file_size': dir_file_size,
     }
 
-def print_ls(lista_itens):
+def print_ls(lista_itens:dict):
+    """
+    Imprime os itens quando o comando ls é solicitado
+
+    :param lista_itens dict
+    
+    :return None
+    """
     for item in lista_itens:
         if item["dir_attr_cod"] == 32:
             print(f'(file){item["dir_name"]}.{item["dir_extension"]}', end="   ")
         elif item["dir_attr_cod"] == 16:
             print(f'(directory){item["dir_name"]}', end="   ")
             
-# lista os arquivos do diretorio atual tendo como padrão o diretorio raiz
-# o parametro cluster diz qual cluster deve ser analisado
-# o paramentro define_dir_atual, define se o diretorio que está sendo analisado deve ser
-# o diretorio corrente
-def list_files(imagem, cluster, define_dir_corrente = False):
-    # global main_fat
+def list_files(imagem:bytearray, cluster:int, define_dir_corrente:bool = False)->dict:
+    """
+    lista os arquivos do diretorio informado
+
+    :param imagem
+    :param cluster int cluster que deve ser listado os arquivos do diretorio
+    :param define_dir_corrente bool define se o diretorio que está sendo analisado deve ser o diretorio corrente
+   
+    :return dict os dados do diretorio listados
+    """
     num_cluster_diretorio = cluster
     first_sector_of_cluster = ((num_cluster_diretorio-2) * main_fat.sector_per_cluster * main_fat.bytes_per_sec) + main_fat.first_data_sector
 
@@ -440,7 +488,7 @@ def list_files(imagem, cluster, define_dir_corrente = False):
 
     # Verifica se o cluster atual é o final, se não for concatena os dados
     # se for só passa pra listagem dos dados
-    #todo tem que resolver esse bo aqui
+    # todo tem que resolver esse bo aqui
     while next_cluster != -1:
         pass
     
@@ -464,12 +512,17 @@ def list_files(imagem, cluster, define_dir_corrente = False):
         main_fat.dados_diretorio_atual = infos_diretorio
     return infos_diretorio
 
-# verifica na tabela FAT, se o cluster passado por parâmetro tem sequência ou acabou por ali
-# caso tenha acabado retorna -1 
-# se tiver sequencia, retorna o valor do proximo cluster no formato int
-def find_next_cluster(imagem, start_cluster) -> int:
-    # print("verificando na fat se o cluster termina ali ou tem que ver mais coisa ainda")
-    # print(f'start_fat1 {main_fat.start_fat1}')
+def find_next_cluster(imagem:bytearray, start_cluster:int) -> int:
+    """
+    verifica na tabela FAT, se o cluster passado por parâmetro tem sequência ou acabou por ali
+    caso tenha acabado retorna -1 
+    se tiver sequencia, retorna o valor do proximo cluster no formato int
+    
+    :param imagem bytearray
+    :param start_cluster int
+
+    :return int o índice do próximo cluster ou -1 ,caso seja o último
+    """
 
     start_fat = main_fat.start_fat1
     offset_tabela_fat  = start_cluster * 4
@@ -480,16 +533,15 @@ def find_next_cluster(imagem, start_cluster) -> int:
     # 268435455 = 0xfffffff
     # caso a entrada seja maior ou igual a 268435448, o arquivo ou diretório acaba ali mesmo
     if proxima_entrada_fat >= 268435448:
-        ###print('não existem mais entradas')
         return -1
     else:
-        ###print(f'proxima_entrada_FAT {(proxima_entrada_fat)}')
         return proxima_entrada_fat
 
-# mostra os atributos do arquivo ou diretorio selecionado
-def show_attributes(name):
-    # print(f"name: {name}")
-    # print(json.dumps(main_fat.dados_diretorio_atual, indent=4))
+def show_attributes(name:str) -> None:
+    """
+    mostra os atributos do arquivo ou diretorio selecionado, buscando no diretório atual
+    :param nome do arquivo ou diretório a ser procurado
+    """
     nome_e_extensao = name.split('.')
     for item in main_fat.dados_diretorio_atual['diretorios']:
         if item['dir_name'] == nome_e_extensao[0].upper():
@@ -502,8 +554,12 @@ def show_attributes(name):
                     print(f"\nSize: {item['dir_file_size']} bytes")
                 # todo: precisa incluir as datas
 
-# faz o processo de entrar em um diretorio 
-def enter_directory(imagem, nome_dir):
+def enter_directory(imagem:bytearray, nome_dir:str) -> None:
+    """
+    realiza o processo de entrar em um diretório
+    :param imagem bytearray
+    :nome_dir str nome do diretório a entrar
+    """
     for item in main_fat.dados_diretorio_atual['diretorios']:
         if (item['dir_name'] == nome_dir.upper()) and (not item['dir_extension']) and item['dir_attr_cod'] == 16:
             # confirmando que é tem o mesmo nome e é um diretório
@@ -525,15 +581,27 @@ def enter_directory(imagem, nome_dir):
             return
     print("Diretorio invalido")
 
-# encontra e retorna o cluster x na fat
-def find_cluster_fat(imagem, cluster):
+def find_cluster_fat(cluster: int) -> int:
+    """
+    encontra e retorna o inicio do endereco cluster x na fat
+    :param cluster int número do cluster a ser procurado
+    
+    :return int inicio do endereco do cluster na fat
+    """
     start_fat = main_fat.start_fat1
     start_cluster = start_fat + (4*cluster)
     return start_cluster
 
-# verifica se o cluster está vazio na FAT
-def verify_empty_fat(imagem, cluster) -> bool:
-    start_cluster = find_cluster_fat(imagem, cluster)
+def verify_empty_fat(imagem:bytearray, cluster:int) -> bool:
+    """
+    verifica se o cluster informado está vazio na FAT
+
+    :param imagem 
+    :param cluster 
+
+    :return bool True caso esteja vazio, senão, false
+    """
+    start_cluster = find_cluster_fat(cluster)
 
     data_cluster = int.from_bytes(imagem[start_cluster : start_cluster + 4], 'little')
     # print(f'data_cluster {data_cluster}')
@@ -542,12 +610,17 @@ def verify_empty_fat(imagem, cluster) -> bool:
     else:
         return False
 
-# define um cluster na fat como utilizado
-# o parametro valor, representa o valor a ser inserido na fat
-# se não passar nada, vai ser preenchido como EOC
-def get_cluster_fat(imagem, cluster, valor = 268435455 ):
+def get_cluster_fat(imagem:bytearray, cluster:int, valor:int = 268435455 ) -> None:
+    """
+    define um cluster na fat como utilizado
+
+    :param imagem
+    :param cluster cluster que será definido como usado
+    :param valor valor que deve ser inserido no cluster, caso não seja informado o cluster é preenchido com EOC
+    """
+
     # alterando na FAT
-    start_cluster = find_cluster_fat(imagem, cluster)
+    start_cluster = find_cluster_fat(cluster)
     
     # valor inteiro que representa que a fat ta sendo utilizada
     # e não tem mais nenhum node
@@ -568,16 +641,27 @@ def get_cluster_fat(imagem, cluster, valor = 268435455 ):
     imagem[start_FSInfo + 488: start_FSInfo + 492] = int.to_bytes(main_fat.fsi_free_count, 4, 'little')
     imagem[start_FSInfo + 492: start_FSInfo + 496] = int.to_bytes(main_fat.fsi_nxt_free, 4, 'little')
 
-
-# metodo que persiste as alterações no disco
-def persist_in_disk(imagem):
+def persist_in_disk(imagem:bytearray) -> None:
+    """
+    persiste as alterações no disco
+    """
     # tot_sec_32 * bytes_per_sec
     with open('myimagefat32.img', 'wb') as imagem_iso:
         imagem_iso.write(imagem)
     
-
-# cria um arquivo ou diretório vazio
-def create_file_directory(imagem, file_name, file_type):
+def create_file_directory(imagem:bytearray, file_name:str, file_type:int) -> None:
+    """
+    cria um arquivo ou diretorio vazio
+    :param imagem
+    :param file_name nome do arquivo ou diretorio
+    :param file_type tipo do arquivo ou diretorio
+    ATTR_READ_ONLY      0x01
+    ATTR_HIDDEN         0x02
+    ATTR_SYSTEM         0x04
+    ATTR_VOLUME_ID      0x08
+    ATTR_DIRECTORY      0x10
+    ATTR_ARCHIVE        0x20
+    """
     if not valid_file_name(file_name):
         print("ERRO: nome não é válido")
 
@@ -674,14 +758,19 @@ def create_file_directory(imagem, file_name, file_type):
         if len(entrada_diretorio_bytes_ponto) != 32 and len(entrada_diretorio_bytes_pontoPonto)!=32:
             print("ERRO: a entrada criada para os arquivos . e .. do diretório estao incorretas")
 
-        start_cluster_dir = return_start_data_cluster(imagem, prox_espaco_livre)
+        start_cluster_dir = return_start_data_cluster(prox_espaco_livre)
         imagem[start_cluster_dir: start_cluster_dir+32] = entrada_diretorio_bytes_ponto
         imagem[start_cluster_dir+32: start_cluster_dir+64] = entrada_diretorio_bytes_pontoPonto
 
     persist_in_disk(imagem)
 
-# remove um arquivo                            
-def remove_file(imagem, filename): 
+def remove_file(imagem:bytearray, filename:str) -> None:
+    """
+    Remove um arquivo
+    :param imagem
+    :param filename nome do arquivo a ser removido
+
+    """
     nome_e_extensao = filename.split('.')
     for item in main_fat.dados_diretorio_atual['diretorios']:
         if item['dir_attr_cod'] == 32:
@@ -693,7 +782,7 @@ def remove_file(imagem, filename):
                     next_cluster = item['first_cluster_dir']
                     while next_cluster != -1:
                         # liberando o espaço na FAT
-                        start_cluster_fat = find_cluster_fat(imagem, next_cluster)
+                        start_cluster_fat = find_cluster_fat(next_cluster)
                         next_cluster = find_next_cluster(imagem, next_cluster)
                         for x in range(0,main_fat.num_fats):
                             fat_offset = (x * main_fat.fat_size_bytes)
@@ -714,7 +803,13 @@ def remove_file(imagem, filename):
                     return
     print("ERRO: arquivo não encontrado")
 
-def remove_dir(imagem, dirname):
+def remove_dir(imagem:bytearray, dirname:str) -> None:
+    """
+    Remove um diretorio
+    :param imagem
+    :param dirname nome do diretorio a ser removido
+
+    """
     for item in main_fat.dados_diretorio_atual['diretorios']:
         if dirname.upper() == item['dir_name'] and item['dir_attr_cod'] == 16:
             # achou o diretorio
@@ -726,7 +821,7 @@ def remove_dir(imagem, dirname):
 
             while next_cluster != -1:
                 # liberando o espaço na FAT
-                start_cluster_fat = find_cluster_fat(imagem, next_cluster)
+                start_cluster_fat = find_cluster_fat(next_cluster)
                 next_cluster = find_next_cluster(imagem, next_cluster)
                 for x in range(0,main_fat.num_fats):
                     fat_offset = (x * main_fat.fat_size_bytes)
@@ -747,23 +842,37 @@ def remove_dir(imagem, dirname):
             return 
     print("ERRO: diretório não encontrado")
     
-# retorna todos os bytes de um arquivo dado o cluster inicial
-def get_file_content(imagem, start_cluster):
+def get_file_content(imagem:bytearray, start_cluster:int) -> bytes:
+    """
+    retorna todos os bytes de um arquivo dado o cluster inicial
+    :param imagem
+    :param start_cluster cluster inicial do arquivo
+
+    :return os bytes do arquivo
+    """
     dados = b''
     next_cluster = start_cluster
     while next_cluster != -1:
-        posicao_inicial_cluster =  return_start_data_cluster(imagem, next_cluster)
+        posicao_inicial_cluster =  return_start_data_cluster(next_cluster)
         dados = dados + imagem[posicao_inicial_cluster : posicao_inicial_cluster + main_fat.bytes_per_sec]
 
         next_cluster = find_next_cluster(imagem, next_cluster)
     
     return dados
 
-# encontra as informacoes de um arquivo ou diretorio
-# caso seja informado o tipo do arquivo, o metodo irá fazer a distinção
-# senão acha o primeiro que tiver o mesmo nome
-# ps: o arquivo tem que estar dentro do diretorio
-def find_file_info(imagem, filename, dados_diretorio,filetype = 0):
+def find_file_info(filename, dados_diretorio,filetype = 0) -> dict:
+    """
+    encontra as informacoes de um arquivo ou diretorio dentro do diretório informado por parametro
+    caso seja informado o tipo do arquivo(filetype), o metodo irá fazer a distinção
+    senão acha o primeiro que tiver o mesmo nome
+    
+    :param filename nome do arquivo a ser procurado
+    :param dados_diretorio dados do diretório em que o arquivo deve estar
+    :param filetype tipo do arquivo, se não for passado nenhum valor, não faz distinção de tipo de arquivo
+
+    :return dict dicionario com as informações do arquivo ou diretorio solicitado
+    """
+
     nome_e_extensao = filename.split('.')
     if len(nome_e_extensao) == 1:
         nome_e_extensao.append("")
@@ -777,16 +886,24 @@ def find_file_info(imagem, filename, dados_diretorio,filetype = 0):
 
     return -1
 
-def find_dir_info(imagem, directory):
-    nome_e_extensao = directory.split('.')
-    if len(nome_e_extensao) == 1:
-        nome_e_extensao.append("")
-    for item in main_fat.dados_diretorio_atual['diretorios']:
-        if item['dir_name'] == nome_e_extensao[0].upper() and item['dir_attr_cod'] == 16 and item['dir_extension'] == nome_e_extensao[1].upper():
-            return item
-    return {}
+# def find_dir_info(imagem, directory):
+#     """
+#     """
+#     nome_e_extensao = directory.split('.')
+#     if len(nome_e_extensao) == 1:
+#         nome_e_extensao.append("")
+#     for item in main_fat.dados_diretorio_atual['diretorios']:
+#         if item['dir_name'] == nome_e_extensao[0].upper() and item['dir_attr_cod'] == 16 and item['dir_extension'] == nome_e_extensao[1].upper():
+#             return item
+#     return {}
 
 def valid_file_name(name:str)-> bool:
+    """
+    Verifica se o nome passado é um nome de arquivo válido
+    :param name nome do arquivo a ser validado
+
+    :return True caso seja válido, senão False
+    """
     if len(name) > 11:
         return False 
     name_extension = name.split('.',1)
@@ -798,11 +915,16 @@ def valid_file_name(name:str)-> bool:
         
     return True
 
-# copia um arquivo para o disco
-# pode receber arquivos da maquina ou do disco
-# /img
-# retorna o local do arquivo_origem(vai facilitar o processo de mover)
-def copy_file(imagem, arquivo_origem, arquivo_destino):
+def copy_file(imagem:bytearray, arquivo_origem: str, arquivo_destino:str) -> str:
+    """
+    Copia um arquivo, podendo este ser ou não da imagem
+    :param imagem
+    :param arquivo_origem nome do arquivo de origem(caso seja da imagem iniciar com img/)
+    :param arquivo_destino nome do arquivo ou diretorio de destino(caso seja da imagem iniciar com img/)
+
+    :return informa qual local foi salvo o arquivo de destino(imagem ou disco)
+    """
+
     # guarda os arquivos do disco
 
     bytes_arquivo_origem = b'' # representa os bytes do arquivo
@@ -814,7 +936,7 @@ def copy_file(imagem, arquivo_origem, arquivo_destino):
     
     if arquivo_origem[0:4] == 'img/':
         nome_arquivo_origem = arquivo_origem[4:]
-        infos_arquivo_origem = find_file_info(imagem, nome_arquivo_origem, main_fat.dados_diretorio_atual['diretorios'],32)
+        infos_arquivo_origem = find_file_info(nome_arquivo_origem, main_fat.dados_diretorio_atual['diretorios'],32)
         if infos_arquivo_origem == -1: 
             print("ERRO: arquivo de origem não encontrado na imagem")
             return
@@ -893,7 +1015,7 @@ def copy_file(imagem, arquivo_origem, arquivo_destino):
         nome_arquivo_destino = arquivo_destino[4:]
         
         # verifica se tem algum arquivo ou diretorio com o nome de destino
-        infos_arquivo_destino = find_file_info(imagem, nome_arquivo_destino, main_fat.dados_diretorio_atual['diretorios'])
+        infos_arquivo_destino = find_file_info(nome_arquivo_destino, main_fat.dados_diretorio_atual['diretorios'])
         if infos_arquivo_destino == -1: 
             # se não um arquivo com esse nome, temos que ver se é um nome valido para criar a copia do arquivo
             if not valid_file_name(nome_arquivo_destino):
@@ -927,7 +1049,7 @@ def copy_file(imagem, arquivo_origem, arquivo_destino):
         # com o mesmo nome no diretorio de destino
         elif infos_arquivo_destino['dir_attr_cod'] == 16:
             infos_diretorio_destino = list_files(imagem, infos_arquivo_destino['first_cluster_dir'], False)
-            if find_file_info(imagem, nome_arquivo_origem, infos_diretorio_destino['diretorios']) != -1:
+            if find_file_info(nome_arquivo_origem, infos_diretorio_destino['diretorios']) != -1:
                print("ERRO: arquivo já existe no diretório de destino")
                return 
             nome_arquivo_destino = nome_arquivo_origem
@@ -946,7 +1068,7 @@ def copy_file(imagem, arquivo_origem, arquivo_destino):
                 get_cluster_fat(imagem, prox_espaco_livre + x, prox_espaco_livre + x+1)
                 espacos_alocados = espacos_alocados + 1
                 
-                byte_inicio_cluster_atual = return_start_data_cluster(imagem, prox_espaco_livre + x)
+                byte_inicio_cluster_atual = return_start_data_cluster(prox_espaco_livre + x)
                 # imagem[byte_inicio_cluster_atual: byte_inicio_cluster_atual+main_fat.]
         # aloca o ultimo cluster, e 'informa' que é o ultimo mesmo
         get_cluster_fat(imagem, prox_espaco_livre + espacos_alocados)
@@ -968,7 +1090,7 @@ def copy_file(imagem, arquivo_origem, arquivo_destino):
         # gravando a referencia do arquivo no diretorio
         imagem[infos_diretorio_destino['inicio_proxima_entrada_dir']: infos_diretorio_destino['inicio_proxima_entrada_dir']+32] = estrutura_arquivo_destino
         
-        byte_inicial_dados = return_start_data_cluster(imagem, prox_espaco_livre)
+        byte_inicial_dados = return_start_data_cluster(prox_espaco_livre)
         
 
         # !salvando os dados contiguamente
@@ -993,8 +1115,15 @@ def copy_file(imagem, arquivo_origem, arquivo_destino):
 
     return local_arquivo_origem
 
-# Move o arquivo de origem para o arquivo destino
-def move_file(imagem, arquivo_origem, arquivo_destino):
+def move_file(imagem:bytearray, arquivo_origem:str, arquivo_destino:str) -> None:
+    """
+    Move um arquivo, podendo este ser ou não da imagem
+    :param imagem
+    :param arquivo_origem nome do arquivo de origem(caso seja da imagem iniciar com img/)
+    :param arquivo_destino nome do arquivo ou diretorio de destino(caso seja da imagem iniciar com img/)
+
+    """
+
     # mover o arquivo é basicamente copia-lo para o destino
     # e depois apagar da origem
     local_arquivo_origem = copy_file(imagem, arquivo_origem, arquivo_destino)
@@ -1004,13 +1133,19 @@ def move_file(imagem, arquivo_origem, arquivo_destino):
     else:
         os.remove(arquivo_origem)
         
-# renomeia o arquivo filename para newfilename        
 def rename_file(imagem,filename, new_filename):
+    """
+    renomeia o arquivo filename para newfilename        
+    
+    :param imagem
+    :param filename nome atual do arquivo
+    :param new_filename novo nome do arquivo
+    """
     if not valid_file_name(new_filename):
         print("ERRO: novo nome de arquivo inválido")
         return 
-    info_file = find_file_info(imagem, filename, main_fat.dados_diretorio_atual['diretorios'])
-    info_file_new_filename = find_file_info(imagem, new_filename, main_fat.dados_diretorio_atual['diretorios'])
+    info_file = find_file_info(filename, main_fat.dados_diretorio_atual['diretorios'])
+    info_file_new_filename = find_file_info(new_filename, main_fat.dados_diretorio_atual['diretorios'])
     
     # Não altera nome de diretorio
     if info_file['dir_attr_cod'] == 16:
@@ -1045,25 +1180,31 @@ def rename_file(imagem,filename, new_filename):
     
     persist_in_disk(imagem)
     
-
 def main():
-    with open('myimagefat32.img', 'rb') as imagem_iso:
+    """
+    função que inicializa o código    
+    """
+
+    # verificando se o nome da iso foi passado como argumento
+    if len(sys.argv) != 2:
+        print("python3 fatshell.py <nome_iso>")
+        # exit
+        nome_iso = 'myimagefat32.img'
+    else:
+        nome_iso = sys.argv[1]
+    
+    # abrindo a iso
+    with open(nome_iso, 'rb') as imagem_iso:
         global main_fat
-        a = imagem_iso.read()
-        a = bytearray(a)
+        iso = imagem_iso.read()
+        iso = bytearray(iso)
 
-    read_BPB(a)
-    read_fsi(a)
-    # print('\n\n Printando o obj fat')
-    # print(main_fat)
+    # le os dados da BPB e FSI, armazenando no
+    read_BPB(iso)
+    read_fsi(iso)
     
-
-    # # FirstSectorofCluster = ((N – 2) * BPB_SecPerClus) + FirstDataSector;
-    # # como achar o primeiro setor de um cluster N
-    # byte_ret = return_text_from_cluster(a, 2)
-    # # print(byte_ret)
-    
-    list_files(a, main_fat.cluster_inicial_diretorio_atual, True)
+    # lista os arquivos e define o diretorio '/' como atual
+    list_files(iso, main_fat.cluster_inicial_diretorio_atual, True)
     sair = 0
     while sair != 1:
         print(f"\nfatshell: [img{main_fat.nome_diretorio_atual}]$ ", end="")
@@ -1077,9 +1218,9 @@ def main():
             if len(comando) != 2 or comando[1].isnumeric() == False:
                 print('cluster <num>: exibe o conteúdo do bloco num no formato texto.')
                 continue
-            print(return_text_from_cluster(a, int(comando[1])), end="")
+            print(return_text_from_cluster(iso, int(comando[1])), end="")
         elif comando[0] == 'ls':
-            print_ls(list_files(a, main_fat.cluster_inicial_diretorio_atual, True)['diretorios'])
+            print_ls(list_files(iso, main_fat.cluster_inicial_diretorio_atual, True)['diretorios'])
         elif comando[0] == 'pwd':
             print(main_fat.nome_diretorio_atual, end='')
         elif comando[0] == 'attr':
@@ -1092,45 +1233,44 @@ def main():
             if len(comando) != 2 or comando[1].isspace():
                 print('cd <path>: altera o diretório corrente para o definido como path.')
                 continue
-            enter_directory(a, comando[1])
+            enter_directory(iso, comando[1])
         elif comando[0] == 'touch':
             if len(comando) != 2 or comando[1].isspace():
-                #! verificar pq ta bugando a img
                 print('touch <file>: cria o arquivo file com conteúdo vazio.')
                 continue
             # cria um arquivo, por isso esta sendo passado o valor 32 
-            create_file_directory(a, comando[1], 32) 
+            create_file_directory(iso, comando[1], 32) 
         elif comando[0] == 'mkdir':
             if len(comando) != 2 or comando[1].isspace():
                 print('mkdir <dir>: cria o diretório dir vazio')
                 continue
             # cria um diretorio, por isso esta sendo passado o valor 16
-            create_file_directory(a, comando[1], 16) 
+            create_file_directory(iso, comando[1], 16) 
         elif comando[0] == 'rm':
             if len(comando) != 2 or comando[1].isspace():
                 print('rm <file>: remove o arquivo file do sistema.')
                 continue
-            remove_file(a, comando[1])
+            remove_file(iso, comando[1])
         elif comando[0] == 'rmdir':
             if len(comando) != 2 or comando[1].isspace():
                 print('rmdir <dir>: remove o diretório dir, se estiver vazio.')
                 continue
-            remove_dir(a, comando[1])
+            remove_dir(iso, comando[1])
         elif comando[0] == 'cp':
             if len(comando) != 3 or comando[1].isspace() or comando[2].isspace():
                 print("cp <source_path> <target_path>: copia um arquivo de origem (source_path) para destino (target_path).")
                 continue
-            copy_file(a, comando[1], comando[2])
+            copy_file(iso, comando[1], comando[2])
         elif comando[0] == 'mv':
             if len(comando) != 3 or comando[1].isspace() or comando[2].isspace():
                 print("mv <source_path> <target_path>: move um arquivo de origem (source_path) para destino (target_path).")
                 continue
-            move_file(a, comando[1], comando[2])
+            move_file(iso, comando[1], comando[2])
         elif comando[0] == 'rename':
             if len(comando) != 3 or comando[1].isspace() or comando[2].isspace():
                 print("rename <file> <newfilename> : renomeia arquivo file para newfilename")
                 continue
-            rename_file(a, comando[1], comando[2])
+            rename_file(iso, comando[1], comando[2])
         else:
             print_menu()
 
