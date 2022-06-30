@@ -42,7 +42,7 @@ class fat:
             'nome_diretorio_atual': '/',
             'cluster_inicial_diretorio_atual': 2,
             'dados_diretorio_atual': {},
-            'inicio_proxima_entrada_dir_atual':0 # guarda o endereco da proxima entrada livre do diretório atual
+            # 'inicio_proxima_entrada_dir_atual':0 # guarda o endereco da proxima entrada livre do diretório atual
         }
         for(prop,default) in prop_defaults.items():
             setattr(self, prop, kwargs.get(prop, default))

@@ -484,22 +484,34 @@ def list_files(imagem:bytearray, cluster:int, define_dir_corrente:bool = False)-
 
 
     dados_cluster_atual = imagem[first_sector_of_cluster:first_sector_of_cluster+main_fat.bytes_per_sec]
+    prev_cluster = num_cluster_diretorio
     next_cluster = find_next_cluster(imagem, num_cluster_diretorio)
+    
+    # guarda os clusters do diretorio
+    first_sectors = []
+    first_sectors.append(first_sector_of_cluster)
 
     # Verifica se o cluster atual é o final, se não for concatena os dados
     # se for só passa pra listagem dos dados
     # todo tem que resolver esse bo aqui
     while next_cluster != -1:
-        pass
+        start_next_cluster = return_start_data_cluster(next_cluster)
+        first_sectors.append(start_next_cluster)
+        dados_cluster_atual = dados_cluster_atual + imagem[start_next_cluster:start_next_cluster+main_fat.bytes_per_sec]
+        prev_cluster = next_cluster
+        next_cluster = find_next_cluster(imagem, next_cluster)
+
     
     # tamanho da entrada de um arquivo dentro do cluster de diretorio
     count = 32
     infos_diretorio = {'diretorios': []} # dados extraidos do diretorio
     for x in range(int(len(dados_cluster_atual) / 32)):
-        info_extraida = extract_infos(imagem[ first_sector_of_cluster + (count*x) : first_sector_of_cluster + (count*(x+1)) ])
-        info_extraida['inicio_endereco'] = first_sector_of_cluster + (count*x)
+        info_extraida = extract_infos(dados_cluster_atual[(count*x) : (count*(x+1)) ])
+        
+        # info_extraida = extract_infos(imagem[ dados_cluster_atual + (count*x) : dados_cluster_atual + (count*(x+1)) ])
+        info_extraida['inicio_endereco'] = first_sectors[int(x/16)] + (count*(x%16)) # (x/16) vai dizer em qual cluster estamos agora
         if info_extraida['tipo'] == 'vazio':
-            infos_diretorio['inicio_proxima_entrada_dir'] = (first_sector_of_cluster + (count*x))
+            infos_diretorio['inicio_proxima_entrada_dir'] = return_start_data_cluster(prev_cluster) + (int(x%16)*32)
             break
         elif info_extraida['tipo'] == 'deletado': 
             continue
@@ -507,6 +519,22 @@ def list_files(imagem:bytearray, cluster:int, define_dir_corrente:bool = False)-
         elif info_extraida['tipo'] != 'long name':
             infos_diretorio['diretorios'].append(info_extraida)
         
+
+    if not 'inicio_proxima_entrada_dir' in infos_diretorio:
+        # caso entre aqui, o cluster do diretório já está cheio, 
+        # entao precisamos alocar outro cluster pra ele
+
+        prox_espaco_livre = main_fat.fsi_nxt_free + 1
+        get_cluster_fat(imagem, prox_espaco_livre) # separa o novo cluster do diretorio
+        
+        # define que o antigo ultimo cluster, agora é o penúltimo
+        get_cluster_fat(imagem, prev_cluster, prox_espaco_livre, False) 
+        
+        infos_diretorio['inicio_proxima_entrada_dir'] = return_start_data_cluster(prox_espaco_livre)
+
+        persist_in_disk(imagem)
+
+
     # print(f'info extraida: {json.dumps(infos_diretorio, indent=4)}')
     if define_dir_corrente:
         main_fat.dados_diretorio_atual = infos_diretorio
@@ -610,13 +638,14 @@ def verify_empty_fat(imagem:bytearray, cluster:int) -> bool:
     else:
         return False
 
-def get_cluster_fat(imagem:bytearray, cluster:int, valor:int = 268435455 ) -> None:
+def get_cluster_fat(imagem:bytearray, cluster:int, valor:int = 268435455, is_new = True) -> None:
     """
     define um cluster na fat como utilizado
 
     :param imagem
     :param cluster cluster que será definido como usado
     :param valor valor que deve ser inserido no cluster, caso não seja informado o cluster é preenchido com EOC
+    :param is_new bool define se o cluster que está sendo alterado é novo ou já está alocado
     """
 
     # alterando na FAT
@@ -719,6 +748,7 @@ def create_file_directory(imagem:bytearray, file_name:str, file_type:int) -> Non
 
     if len(entrada_diretorio_bytes) != 32:
         print("ERRO: a entrada criada para o diretório está incorreta")
+        return
     if verify_empty_fat(imagem, prox_espaco_livre) == False:
         print("erro ao encontrar espaço livre!")
         exit()
@@ -1273,6 +1303,7 @@ def main():
             rename_file(iso, comando[1], comando[2])
         else:
             print_menu()
+        list_files(iso, main_fat.cluster_inicial_diretorio_atual, True)
 
 if __name__ == '__main__':
     main()
